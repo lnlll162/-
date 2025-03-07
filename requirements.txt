@@ -1,0 +1,11 @@
+streamlit==1.31.0
+plotly==5.18.0
+pandas==2.2.0
+numpy==1.26.0
+python-dotenv==1.0.0
+SQLAlchemy==2.0.25
+gunicorn==21.2.0
+psycopg2-binary==2.9.9  # 如果使用PostgreSQL
+pymongo==4.6.1  # 如果使用MongoDB
+xlsxwriter==3.1.9
+openpyxl==3.1.2 
