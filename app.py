@@ -1339,7 +1339,6 @@ def render_physical_space():
             colorscale='RdYlGn',
             colorbar=dict(title='使用率')
         ))
-        )
         
         fig.update_layout(
             title='空间使用效率分析',
