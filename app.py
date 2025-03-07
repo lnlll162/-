@@ -10,6 +10,9 @@ import json
 import os
 import time
 from io import BytesIO
+from dotenv import load_dotenv
+import secrets
+import logging
 
 # 国际化支持
 LANGUAGES = {
@@ -48,8 +51,19 @@ st.set_page_config(
     page_title="5A智慧学习空间数据大屏",
     page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://your-help-url',
+        'Report a bug': "https://your-bug-report-url",
+        'About': "# 5A智慧学习空间数据大屏\n 基于'5A'智慧学习范式的未来学习空间分析与可视化平台"
+    }
 )
+
+# 添加环境变量支持
+load_dotenv()
+
+# 数据库配置（替换本地JSON文件）
+DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///./data.db')
 
 # 自定义CSS样式
 st.markdown("""
@@ -100,6 +114,17 @@ st.markdown("""
 <div class="title">5A智慧学习空间数据大屏</div>
 <div class="subtitle">基于"5A"智慧学习范式的未来学习空间分析与可视化</div>
 """, unsafe_allow_html=True)
+
+# 配置日志
+logging.basicConfig(
+    filename='app.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+def log_activity(user_id, action, details=None):
+    """记录用户活动"""
+    logging.info(f"User {user_id} - {action} - {details}")
 
 # 用户认证配置
 class AuthConfig:
@@ -1314,6 +1339,7 @@ def render_physical_space():
             colorscale='RdYlGn',
             colorbar=dict(title='使用率')
         ))
+        )
         
         fig.update_layout(
             title='空间使用效率分析',
@@ -1440,6 +1466,53 @@ def render_knowledge_distribution():
     )
     
     return fig, df  # 返回图表和数据
+
+# 添加安全配置
+import secrets
+
+# 生成安全的会话密钥
+if 'session_key' not in st.session_state:
+    st.session_state.session_key = secrets.token_hex(16)
+
+# 添加基本的 CSRF 保护
+def generate_csrf_token():
+    if 'csrf_token' not in st.session_state:
+        st.session_state.csrf_token = secrets.token_hex(32)
+    return st.session_state.csrf_token
+
+# 添加速率限制
+def rate_limit(key, limit=100, window=60):
+    """简单的速率限制实现"""
+    now = datetime.now()
+    if 'rate_limit' not in st.session_state:
+        st.session_state.rate_limit = {}
+    
+    if key not in st.session_state.rate_limit:
+        st.session_state.rate_limit[key] = []
+    
+    # 清理过期的请求记录
+    st.session_state.rate_limit[key] = [
+        t for t in st.session_state.rate_limit[key]
+        if t > now - timedelta(seconds=window)
+    ]
+    
+    if len(st.session_state.rate_limit[key]) >= limit:
+        return False
+    
+    st.session_state.rate_limit[key].append(now)
+    return True
+
+# 添加缓存支持
+@st.cache_data(ttl=3600)  # 缓存1小时
+def fetch_data():
+    """获取数据的函数"""
+    return your_data_fetching_logic()
+
+# 添加数据预加载
+def preload_data():
+    """预加载常用数据"""
+    if 'preloaded_data' not in st.session_state:
+        st.session_state.preloaded_data = fetch_data()
 
 if __name__ == "__main__":
     main() 
