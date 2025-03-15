@@ -8,4 +8,6 @@ gunicorn==21.2.0
 psycopg2-binary==2.9.9  # 如果使用PostgreSQL
 pymongo==4.6.1  # 如果使用MongoDB
 xlsxwriter==3.1.9
-openpyxl==3.1.2 
+openpyxl==3.1.2
+requests
+aiohttp 
