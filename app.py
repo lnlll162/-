@@ -13,6 +13,10 @@ from io import BytesIO
 from dotenv import load_dotenv
 import secrets
 import logging
+import requests
+import asyncio
+import aiohttp
+from typing import Dict, Any, List, Optional
 
 # 国际化支持
 LANGUAGES = {
@@ -492,33 +496,161 @@ def register_page():
 
 # 修改密码页面
 def change_password_page():
-    st.title("修改密码")
+    st.title("系统设置")
     
-    with st.form("change_password_form"):
-        old_password = st.text_input("原密码", type="password")
-        new_password = st.text_input("新密码", type="password")
-        confirm_password = st.text_input("确认新密码", type="password")
-        submit = st.form_submit_button("修改")
-        
-        if submit:
-            if new_password != confirm_password:
-                st.error("两次输入的新密码不一致")
-            else:
-                auth_config = AuthConfig()
-                success, message = auth_config.change_password(
-                    st.session_state.username, 
-                    old_password, 
-                    new_password
-                )
-                if success:
-                    st.success(message)
-                    st.info("3秒后需要重新登录...")
-                    time.sleep(3)
-                    for key in st.session_state.keys():
-                        del st.session_state[key]
-                    st.rerun()
+    # 使用更美观的标签页
+    tabs = st.tabs(["👤 账户设置", "🔑 API配置", "📊 使用统计"])
+    
+    with tabs[0]:
+        st.subheader("修改密码")
+        with st.form("change_password_form"):
+            old_password = st.text_input("原密码", type="password")
+            new_password = st.text_input("新密码", type="password")
+            confirm_password = st.text_input("确认新密码", type="password")
+            submit = st.form_submit_button("修改密码", use_container_width=True)
+            
+            if submit:
+                if new_password != confirm_password:
+                    st.error("两次输入的新密码不一致")
                 else:
-                    st.error(message)
+                    auth_config = AuthConfig()
+                    success, message = auth_config.change_password(
+                        st.session_state.username, 
+                        old_password, 
+                        new_password
+                    )
+                    if success:
+                        st.success(message)
+                        st.info("3秒后需要重新登录...")
+                        time.sleep(3)
+                        for key in st.session_state.keys():
+                            del st.session_state[key]
+                        st.rerun()
+                    else:
+                        st.error(message)
+    
+    with tabs[1]:
+        st.subheader("DeepSeek API配置")
+        
+        # 显示当前API状态
+        current_api_key = os.getenv('DEEPSEEK_API_KEY', '')
+        if not current_api_key and 'deepseek_api_key' in st.session_state:
+            current_api_key = st.session_state.deepseek_api_key
+            
+        # 使用更美观的状态卡片
+        if current_api_key:
+            st.markdown("""
+            <div style='background-color: #d4edda; padding: 1rem; border-radius: 10px; margin-bottom: 1rem; border-left: 5px solid #28a745;'>
+                <h5 style='margin:0; color: #28a745;'>API状态: 已配置</h5>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # 显示密钥的部分内容
+            masked_key = current_api_key[:4] + "*" * (len(current_api_key) - 8) + current_api_key[-4:]
+            st.info(f"当前API密钥: {masked_key}")
+        else:
+            st.markdown("""
+            <div style='background-color: #fff3cd; padding: 1rem; border-radius: 10px; margin-bottom: 1rem; border-left: 5px solid #ffc107;'>
+                <h5 style='margin:0; color: #856404;'>API状态: 未配置</h5>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with st.form("api_settings_form"):
+            deepseek_api_key = st.text_input(
+                "DeepSeek API密钥", 
+                value="",
+                type="password",
+                placeholder="请输入您的DeepSeek API密钥"
+            )
+            
+            # 添加API基础URL配置
+            deepseek_api_base = st.text_input(
+                "API基础URL",
+                value="https://api.deepseek.com",
+                placeholder="例如: https://api.deepseek.com"
+            )
+            
+            deepseek_model = st.selectbox(
+                "DeepSeek模型",
+                ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"],
+                index=0
+            )
+            
+            # 使用更美观的按钮布局
+            col1, col2 = st.columns(2)
+            with col1:
+                submit_api = st.form_submit_button("保存API设置", use_container_width=True)
+            with col2:
+                test_api = st.form_submit_button("测试API连接", use_container_width=True)
+            
+            if submit_api and deepseek_api_key:
+                # 保存到会话状态
+                st.session_state.deepseek_api_key = deepseek_api_key
+                st.session_state.deepseek_api_base = deepseek_api_base
+                # 保存到环境变量
+                os.environ['DEEPSEEK_API_KEY'] = deepseek_api_key
+                os.environ['DEEPSEEK_API_BASE'] = deepseek_api_base
+                os.environ['DEEPSEEK_MODEL'] = deepseek_model
+                st.success("API设置已保存")
+                
+                # 测试API连接
+                with st.spinner("正在测试API连接..."):
+                    test_ai = DeepSeekAI()
+                    test_response = test_ai.sync_generate_response(
+                        [{"role": "user", "content": "Hello"}],
+                        max_tokens=10
+                    )
+                    
+                    if "error" in test_response:
+                        st.error(f"API测试失败: {test_response['error']}")
+                        st.error(f"详细信息: {test_response.get('details', '无详细信息')}")
+                    else:
+                        st.success("API连接测试成功!")
+            
+            if test_api:
+                with st.spinner("正在测试API连接..."):
+                    test_ai = DeepSeekAI()
+                    test_response = test_ai.sync_generate_response(
+                        [{"role": "user", "content": "Hello"}],
+                        max_tokens=10
+                    )
+                    
+                    if "error" in test_response:
+                        st.error(f"API测试失败: {test_response['error']}")
+                        st.error(f"详细信息: {test_response.get('details', '无详细信息')}")
+                    else:
+                        st.success("API连接测试成功!")
+    
+    with tabs[2]:
+        st.subheader("API使用统计")
+        
+        # 显示API使用统计
+        if 'api_usage' in st.session_state:
+            usage = st.session_state.api_usage
+            
+            # 使用更美观的指标卡片
+            cols = st.columns(3)
+            with cols[0]:
+                st.metric("API调用次数", usage['calls'])
+            with cols[1]:
+                st.metric("使用令牌数", usage['tokens'])
+            with cols[2]:
+                if usage['last_call']:
+                    st.metric("上次调用时间", usage['last_call'].strftime('%H:%M:%S'))
+            
+            # 添加使用趋势图表
+            if usage['calls'] > 0:
+                # 这里可以添加一个使用趋势图表，如果有历史数据的话
+                st.info("API使用趋势图将在未来版本中提供")
+        else:
+            st.info("暂无API使用记录")
+        
+        # 添加清除统计按钮
+        if st.button("清除使用统计"):
+            if 'api_usage' in st.session_state:
+                del st.session_state.api_usage
+                st.success("使用统计已清除")
+                st.rerun()
 
 # 重置密码页面
 def reset_password_page():
@@ -835,6 +967,8 @@ def main():
         st.session_state.logged_in = False
     if 'language' not in st.session_state:
         st.session_state.language = "中文"
+    if 'sidebar_option' not in st.session_state:
+        st.session_state.sidebar_option = get_text("dashboard")
     
     # 添加语言选择
     st.sidebar.selectbox(
@@ -863,10 +997,11 @@ def main():
         st.title(f"{get_text('title')} - {st.session_state.username}")
         
         # 添加侧边栏选项
-        sidebar_option = st.sidebar.selectbox(
+        sidebar_option = st.sidebar.radio(
             "选择操作",
-            [get_text("dashboard"), get_text("data_analysis"), 
-             get_text("settings"), get_text("logout")]
+            [get_text("dashboard"), get_text("data_analysis"), "AI助手", "学习空间推荐", 
+             "学习路径规划", "学习行为分析", "学习诊断", "帮助中心", get_text("settings"), get_text("logout")],
+            key="sidebar_option"
         )
         
         if sidebar_option == get_text("settings"):
@@ -879,14 +1014,28 @@ def main():
             st.subheader(get_text("data_analysis"))
             analysis_type = st.selectbox(
                 "选择分析类型",
-                ["使用率趋势", "行为模式", "环境影响"]
+                ["使用率趋势", "行为模式", "环境影响", "AI增强分析"]
             )
             if analysis_type == "使用率趋势":
                 st.plotly_chart(render_trend_analysis(), use_container_width=True)
             elif analysis_type == "行为模式":
                 st.plotly_chart(render_learning_behavior_radar(), use_container_width=True)
-            else:
+            elif analysis_type == "环境影响":
                 st.plotly_chart(render_space_efficiency_heatmap(), use_container_width=True)
+            else:
+                render_space_analysis()
+        elif sidebar_option == "AI助手":
+            render_ai_assistant()
+        elif sidebar_option == "学习空间推荐":
+            render_space_recommendation()
+        elif sidebar_option == "学习路径规划":
+            render_learning_path_recommendation()
+        elif sidebar_option == "学习行为分析":
+            render_learning_behavior_analysis()
+        elif sidebar_option == "学习诊断":
+            render_learning_diagnosis()
+        elif sidebar_option == "帮助中心":
+            render_help_page()
         else:
             render_dashboard()
 
@@ -916,10 +1065,12 @@ def render_dashboard():
     """渲染主数据大屏"""
     # 添加页面标题和描述
     st.title("🎓 智慧学习空间数据大屏")
+    
+    # 使用更美观的系统概述卡片
     st.markdown("""
-    <div style='background-color: rgba(28, 131, 225, 0.1); padding: 1rem; border-radius: 10px; margin-bottom: 2rem;'>
-        <h4 style='margin:0'>系统概述</h4>
-        <p style='margin:0.5rem 0 0 0'>
+    <div style='background-color: rgba(28, 131, 225, 0.1); padding: 1.5rem; border-radius: 10px; margin-bottom: 2rem; border-left: 5px solid #1c83e1;'>
+        <h4 style='margin:0; color: #1c83e1;'>系统概述</h4>
+        <p style='margin:0.5rem 0 0 0; font-size: 1rem;'>
         整合物理、虚拟和泛在学习空间的实时监控与分析平台，基于"5A"智慧学习范式，提供全方位的学习空间数据可视化与智能分析。
         </p>
     </div>
@@ -935,8 +1086,14 @@ def render_dashboard():
             time.sleep(refresh_interval)
             st.rerun()
     
-    # 使用tabs来组织不同空间的数据
-    tab1, tab2, tab3, tab4 = st.tabs(["📍 物理空间", "💻 虚拟空间", "🌐 泛在空间", "📈 趋势分析"])
+    # 使用tabs来组织不同空间的数据，添加图标
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "📍 物理空间", 
+        "💻 虚拟空间", 
+        "🌐 泛在空间", 
+        "📈 趋势分析", 
+        "🤖 AI助手"
+    ])
     
     with tab1:
         render_physical_space()
@@ -949,6 +1106,22 @@ def render_dashboard():
     
     with tab4:
         st.plotly_chart(render_trend_analysis(), use_container_width=True)
+    
+    with tab5:
+        render_ai_assistant()
+    
+    # 添加底部状态栏
+    st.markdown("---")
+    cols = st.columns([1, 1, 1])
+    with cols[0]:
+        st.markdown("**系统状态:** 🟢 正常运行中")
+    with cols[1]:
+        st.markdown(f"**最后更新:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    with cols[2]:
+        if 'api_usage' in st.session_state:
+            st.markdown(f"**API调用次数:** {st.session_state.api_usage['calls']}")
+        else:
+            st.markdown("**API调用次数:** 0")
 
 def render_space_distribution():
     """空间分布可视化"""
@@ -1008,7 +1181,7 @@ def render_space_analysis():
     # 分析维度选择
     analysis_dim = st.multiselect(
         "选择分析维度",
-        ["使用率", "满意度", "活动类型", "人流量"],
+        ["使用率", "满意度", "活动类型", "人流量", "AI增强分析"],
         default=["使用率"]
     )
     
@@ -1021,6 +1194,43 @@ def render_space_analysis():
         st.plotly_chart(render_activity_radar(), use_container_width=True)
     if "人流量" in analysis_dim:
         st.plotly_chart(render_traffic_analysis(), use_container_width=True)
+    
+    # 添加AI增强分析
+    if "AI增强分析" in analysis_dim:
+        with st.spinner("AI分析中..."):
+            # 获取分析数据
+            space_data = cached_space_usage().to_dict()
+            
+            # 调用DeepSeek进行分析
+            deepseek_ai = DeepSeekAI()
+            analysis_prompt = f"""
+            请分析以下学习空间数据，重点关注:
+            1. 空间使用效率和优化建议
+            2. 学习行为模式和趋势
+            3. 资源分配合理性评估
+            4. 未来使用预测
+            
+            数据内容: {json.dumps(space_data, ensure_ascii=False)}
+            
+            请提供详细的分析报告，包括数据洞察、问题识别和改进建议。
+            """
+            
+            messages = [
+                {"role": "system", "content": "你是一个专业的教育数据分析专家，擅长分析学习空间数据并提供有价值的见解。"},
+                {"role": "user", "content": analysis_prompt}
+            ]
+            
+            response = deepseek_ai.sync_generate_response(messages)
+            
+            if "error" in response:
+                st.error(f"AI分析过程中出现错误: {response.get('error', '未知错误')}")
+            else:
+                try:
+                    analysis_content = response["choices"][0]["message"]["content"]
+                    st.markdown("## AI增强分析报告")
+                    st.markdown(analysis_content)
+                except (KeyError, IndexError):
+                    st.error("处理AI响应时出现错误，请稍后再试。")
 
 def render_virtual_space():
     """渲染虚拟学习空间数据"""
@@ -1049,44 +1259,6 @@ def render_interaction_network():
         for j in range(i+1, len(nodes)):
             if random.random() > 0.3:  # 70%概率生成连接
                 edges.append((i, j, random.randint(1, 10)))
-    
-    # 创建网络图
-    node_positions_x = [random.random() for _ in nodes]
-    node_positions_y = [random.random() for _ in nodes]
-    
-    fig = go.Figure()
-    
-    # 添加节点
-    fig.add_trace(go.Scatter(
-        x=node_positions_x,
-        y=node_positions_y,
-        mode='markers+text',
-        text=nodes,
-        textposition="top center",
-        marker=dict(size=20, color='lightblue'),
-        name='节点'
-    ))
-    
-    # 添加连接线
-    for edge in edges:
-        fig.add_trace(go.Scatter(
-            x=[node_positions_x[edge[0]], node_positions_x[edge[1]]],
-            y=[node_positions_y[edge[0]], node_positions_y[edge[1]]],
-            mode='lines',
-            line=dict(width=edge[2]/2),
-            showlegend=False
-        ))
-    
-    fig.update_layout(
-        title='学习交互网络',
-        showlegend=False,
-        height=400,
-        margin=dict(t=50, l=25, r=25, b=25),
-        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-    )
-    
-    return fig
 
 def render_ubiquitous_space():
     """渲染泛在学习空间数据"""
@@ -1512,6 +1684,761 @@ def preload_data():
     """预加载常用数据"""
     if 'preloaded_data' not in st.session_state:
         st.session_state.preloaded_data = fetch_data()
+
+# 在AuthConfig类后添加DeepSeek API集成类
+class DeepSeekAI:
+    def __init__(self):
+        # 从环境变量或会话状态获取API密钥
+        self.api_key = os.getenv('DEEPSEEK_API_KEY', '')
+        # 如果环境变量中没有，尝试从会话状态获取
+        if not self.api_key and 'deepseek_api_key' in st.session_state:
+            self.api_key = st.session_state.deepseek_api_key
+        
+        # 手动设置API密钥（临时解决方案）
+        if not self.api_key:
+            self.api_key = "sk-fd1c7c81430b433daffcc8ebee130906"
+        
+        # 不显示警告信息
+        # st.warning("DeepSeek API密钥未配置，请在设置页面配置API密钥")
+        
+        # 根据文档更新API基础URL
+        self.api_base = "https://api.deepseek.com"  # 不包含/v1
+        self.model = os.getenv('DEEPSEEK_MODEL', 'deepseek-chat')
+        self.session = None
+    
+    async def init_session(self):
+        """初始化异步会话"""
+        if self.session is None:
+            self.session = aiohttp.ClientSession()
+    
+    async def close_session(self):
+        """关闭异步会话"""
+        if self.session:
+            await self.session.close()
+            self.session = None
+    
+    async def generate_response(self, messages: List[Dict[str, str]], 
+                               temperature: float = 0.7, 
+                               max_tokens: int = 1000) -> Dict[str, Any]:
+        """调用DeepSeek API生成响应"""
+        await self.init_session()
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
+        
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens
+        }
+        
+        try:
+            async with self.session.post(
+                f"{self.api_base}/chat/completions",
+                headers=headers,
+                json=payload
+            ) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    error_text = await response.text()
+                    logging.error(f"DeepSeek API错误: {error_text}")
+                    return {"error": f"API错误: {response.status}", "details": error_text}
+        except Exception as e:
+            logging.error(f"调用DeepSeek API时发生错误: {str(e)}")
+            return {"error": f"请求错误: {str(e)}"}
+    
+    def sync_generate_response(self, messages: List[Dict[str, str]], 
+                              temperature: float = 0.7, 
+                              max_tokens: int = 500):  # 减少最大令牌数
+        """同步调用DeepSeek API (用于非异步环境)"""
+        # 检查API密钥
+        if not self.api_key:
+            return {"error": "API密钥未配置", "details": "请在设置页面配置DeepSeek API密钥"}
+        
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.api_key}"
+        }
+        
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens
+        }
+        
+        try:
+            # 添加详细日志
+            logging.info(f"正在调用DeepSeek API，模型: {self.model}")
+            logging.info(f"API基础URL: {self.api_base}")
+            
+            response = requests.post(
+                f"{self.api_base}/chat/completions",
+                headers=headers,
+                json=payload,
+                timeout=30
+            )
+            
+            # 记录响应状态和内容
+            logging.info(f"API响应状态码: {response.status_code}")
+            if response.status_code != 200:
+                logging.error(f"API响应内容: {response.text}")
+            
+            if response.status_code == 200:
+                return response.json()
+            elif response.status_code == 401:
+                logging.error(f"DeepSeek API认证错误: {response.text}")
+                return {"error": "API认证失败(401)", "details": "请检查API密钥是否正确"}
+            elif response.status_code == 402:
+                logging.error(f"DeepSeek API付款错误: {response.text}")
+                return {"error": "API付款问题(402)", "details": "账户余额不足或付款问题，请检查您的DeepSeek账户状态"}
+            elif response.status_code == 403:
+                logging.error(f"DeepSeek API权限错误: {response.text}")
+                return {"error": "API权限不足(403)", "details": "您的账户可能没有访问此API的权限"}
+            elif response.status_code == 429:
+                logging.error(f"DeepSeek API请求过多: {response.text}")
+                return {"error": "请求频率限制(429)", "details": "请求过于频繁，请稍后再试"}
+            else:
+                logging.error(f"DeepSeek API错误: {response.status_code} - {response.text}")
+                return {"error": f"API错误: {response.status_code}", "details": response.text}
+        except requests.exceptions.Timeout:
+            logging.error("DeepSeek API请求超时")
+            return {"error": "请求超时", "details": "API服务器响应超时，请稍后再试"}
+        except requests.exceptions.ConnectionError:
+            logging.error("DeepSeek API连接错误")
+            return {"error": "连接错误", "details": "无法连接到API服务器，请检查网络连接"}
+        except Exception as e:
+            logging.error(f"调用DeepSeek API时发生错误: {str(e)}")
+            return {"error": f"请求错误", "details": str(e)}
+        
+        # 如果是付费模型，可以尝试使用免费模型
+        if self.model in ["deepseek-chat", "deepseek-coder"]:
+            try_free_model = False
+            if "error" in response and response.get("error", "").startswith("API错误: 402"):
+                logging.info("尝试使用免费模型...")
+                payload["model"] = "deepseek-chat-light"  # 假设这是一个免费模型
+                try_free_model = True
+                
+                response = requests.post(
+                    f"{self.api_base}/chat/completions",
+                    headers=headers,
+                    json=payload,
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    logging.info("使用免费模型成功")
+                    return response.json()
+        return response  # 返回最后一次尝试的结果
+    
+    def analyze_learning_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """分析学习数据并提供见解"""
+        messages = [
+            {"role": "system", "content": "你是一个专业的教育数据分析专家，擅长分析学习空间数据并提供有价值的见解。"},
+            {"role": "user", "content": f"请分析以下学习空间数据，并提供关键见解和改进建议：\n{json.dumps(data, ensure_ascii=False)}"}
+        ]
+        
+        response = self.sync_generate_response(messages)
+        if "error" in response:
+            return {"analysis": "分析过程中出现错误，请稍后再试。", "error": response["error"]}
+        
+        try:
+            content = response["choices"][0]["message"]["content"]
+            return {"analysis": content}
+        except (KeyError, IndexError) as e:
+            logging.error(f"解析DeepSeek响应时出错: {str(e)}")
+            return {"analysis": "无法解析AI响应，请稍后再试。", "error": str(e)}
+
+    # 在DeepSeekAI类中添加重试机制
+    def sync_generate_response_with_retry(self, messages: List[Dict[str, str]], 
+                                         temperature: float = 0.7, 
+                                         max_tokens: int = 1000,
+                                         max_retries: int = 3) -> Dict[str, Any]:
+        """带重试机制的API调用"""
+        retries = 0
+        while retries < max_retries:
+            response = self.sync_generate_response(messages, temperature, max_tokens)
+            if "error" not in response or response.get("error", "").startswith("API错误: 5"):
+                # 成功或非服务器错误，直接返回
+                return response
+            
+            # 服务器错误，尝试重试
+            retries += 1
+            if retries < max_retries:
+                # 指数退避策略
+                wait_time = 2 ** retries
+                time.sleep(wait_time)
+                logging.info(f"API调用失败，第{retries}次重试...")
+        
+        return response  # 返回最后一次尝试的结果
+
+    # 在DeepSeekAI类中添加使用量跟踪
+    def track_api_usage(self, tokens_used: int = 0):
+        """跟踪API使用量"""
+        if 'api_usage' not in st.session_state:
+            st.session_state.api_usage = {
+                'calls': 0,
+                'tokens': 0,
+                'last_call': None
+            }
+        
+        st.session_state.api_usage['calls'] += 1
+        st.session_state.api_usage['tokens'] += tokens_used
+        st.session_state.api_usage['last_call'] = datetime.now()
+
+# 添加AI助手界面函数
+
+def render_ai_assistant():
+    """渲染AI助手界面"""
+    st.subheader("DeepSeek AI 智能助手")
+    
+    # 初始化会话状态
+    if 'ai_messages' not in st.session_state:
+        st.session_state.ai_messages = [
+            {"role": "system", "content": "你是5A智慧学习空间的AI助手，可以帮助用户分析学习数据、提供学习建议、回答教育相关问题。"},
+            {"role": "assistant", "content": "您好！我是基于DeepSeek的5A智慧学习空间AI助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？"}
+        ]
+    
+    # 显示对话历史
+    for message in st.session_state.ai_messages:
+        if message["role"] != "system":
+            if message["role"] == "user":
+                st.markdown(f"**您:** {message['content']}")
+            else:
+                st.markdown(f"**AI助手:** {message['content']}")
+    
+    # 用户输入
+    with st.form(key="ai_assistant_form", clear_on_submit=True):
+        user_input = st.text_area("请输入您的问题:")
+        submit = st.form_submit_button("发送")
+        clear = st.form_submit_button("清空对话")
+        
+        if submit and user_input:
+            # 添加用户消息
+            st.session_state.ai_messages.append({"role": "user", "content": user_input})
+            
+            # 调用API获取响应
+            with st.spinner("AI思考中..."):
+                deepseek_ai = DeepSeekAI()
+                response = deepseek_ai.sync_generate_response(
+                    st.session_state.ai_messages,
+                    temperature=0.7
+                )
+                
+                if "error" in response:
+                    error_message = f"获取AI响应时出错: {response.get('error', '未知错误')}"
+                    st.session_state.ai_messages.append({"role": "assistant", "content": f"抱歉，{error_message}"})
+                else:
+                    try:
+                        ai_response = response["choices"][0]["message"]["content"]
+                        st.session_state.ai_messages.append({"role": "assistant", "content": ai_response})
+                    except (KeyError, IndexError) as e:
+                        st.session_state.ai_messages.append({"role": "assistant", "content": f"抱歉，处理响应时出错: {str(e)}"})
+            
+            st.rerun()
+        
+        if clear:
+            # 保留系统消息，清空对话历史
+            system_message = next((msg for msg in st.session_state.ai_messages if msg["role"] == "system"), None)
+            st.session_state.ai_messages = [system_message] if system_message else []
+            st.session_state.ai_messages.append({"role": "assistant", "content": "对话已清空。有什么可以帮您的吗？"})
+            st.rerun()
+
+# 添加学习路径推荐功能
+
+def render_learning_path_recommendation():
+    """基于DeepSeek的学习路径推荐"""
+    st.subheader("个性化学习路径推荐")
+    
+    # 学习者信息输入
+    with st.form("learner_info_form"):
+        learner_name = st.text_input("学习者姓名")
+        learner_level = st.selectbox("当前水平", ["初级", "中级", "高级"])
+        learning_goal = st.text_area("学习目标")
+        preferred_style = st.multiselect(
+            "偏好学习方式", 
+            ["视频学习", "阅读学习", "实践操作", "小组讨论", "自主探究"]
+        )
+        available_time = st.slider("每周可用学习时间(小时)", 1, 40, 10)
+        
+        submit = st.form_submit_button("生成学习路径")
+        
+        if submit:
+            if not learner_name or not learning_goal:
+                st.error("请填写学习者姓名和学习目标")
+            else:
+                with st.spinner("AI正在生成个性化学习路径..."):
+                    # 构建学习者画像
+                    learner_profile = {
+                        "name": learner_name,
+                        "level": learner_level,
+                        "goal": learning_goal,
+                        "preferred_style": preferred_style,
+                        "available_time": available_time
+                    }
+                    
+                    # 调用DeepSeek生成学习路径
+                    deepseek_ai = DeepSeekAI()
+                    prompt = f"""
+                    请为以下学习者设计一个个性化的学习路径:
+                    
+                    学习者信息:
+                    - 姓名: {learner_name}
+                    - 当前水平: {learner_level}
+                    - 学习目标: {learning_goal}
+                    - 偏好学习方式: {', '.join(preferred_style)}
+                    - 每周可用时间: {available_time}小时
+                    
+                    请提供:
+                    1. 学习路径概述
+                    2. 阶段性学习目标(3-5个阶段)
+                    3. 每个阶段的具体学习资源和活动
+                    4. 学习进度评估方式
+                    5. 时间安排建议
+                    
+                    请确保学习路径符合学习者的水平、目标和偏好，并能在给定时间内完成。
+                    """
+                    
+                    messages = [
+                        {"role": "system", "content": "你是一个专业的教育规划专家，擅长设计个性化学习路径。"},
+                        {"role": "user", "content": prompt}
+                    ]
+                    
+                    response = deepseek_ai.sync_generate_response(messages)
+                    
+                    if "error" in response:
+                        st.error(f"生成学习路径时出现错误: {response.get('error', '未知错误')}")
+                    else:
+                        try:
+                            path_content = response["choices"][0]["message"]["content"]
+                            st.markdown("## 个性化学习路径")
+                            st.markdown(path_content)
+                            
+                            # 添加保存和分享选项
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.download_button(
+                                    "下载学习路径",
+                                    path_content,
+                                    file_name=f"{learner_name}_学习路径.md",
+                                    mime="text/markdown"
+                                )
+                            with col2:
+                                st.button("分享学习路径", 
+                                         help="此功能将在未来版本中实现")
+                        except (KeyError, IndexError):
+                            st.error("处理AI响应时出现错误，请稍后再试。")
+
+# 添加学习空间智能推荐功能
+
+def render_space_recommendation():
+    """基于学习需求的空间推荐"""
+    st.subheader("学习空间智能推荐")
+    
+    # 学习需求输入
+    with st.form("learning_needs_form"):
+        learning_activity = st.selectbox(
+            "学习活动类型",
+            ["个人自习", "小组讨论", "实验操作", "创新创作", "展示汇报", "技能训练"]
+        )
+        
+        participant_count = st.number_input("参与人数", 1, 100, 1)
+        
+        duration = st.slider("预计时长(小时)", 0.5, 8.0, 2.0, 0.5)
+        
+        required_resources = st.multiselect(
+            "所需资源",
+            ["电脑/网络", "投影设备", "白板", "实验器材", "创作工具", "参考资料"]
+        )
+        
+        special_requirements = st.text_area("特殊需求(可选)")
+        
+        submit = st.form_submit_button("推荐学习空间")
+        
+        if submit:
+            with st.spinner("AI正在分析最佳学习空间..."):
+                # 构建学习需求
+                learning_needs = {
+                    "activity_type": learning_activity,
+                    "participant_count": participant_count,
+                    "duration": duration,
+                    "required_resources": required_resources,
+                    "special_requirements": special_requirements
+                }
+                
+                # 获取可用空间数据
+                available_spaces = cached_space_usage().to_dict()
+                
+                # 调用DeepSeek进行空间推荐
+                deepseek_ai = DeepSeekAI()
+                prompt = f"""
+                请根据以下学习需求，从可用的学习空间中推荐最适合的空间:
+                
+                学习需求:
+                - 活动类型: {learning_activity}
+                - 参与人数: {participant_count}人
+                - 预计时长: {duration}小时
+                - 所需资源: {', '.join(required_resources) if required_resources else '无特殊要求'}
+                - 特殊需求: {special_requirements if special_requirements else '无'}
+                
+                可用学习空间:
+                {json.dumps(available_spaces, ensure_ascii=False)}
+                
+                请提供:
+                1. 最佳推荐空间(1-3个)
+                2. 每个推荐空间的优势和适合理由
+                3. 使用该空间的注意事项
+                4. 空间预约建议
+                
+                请确保推荐的空间能够满足学习需求，并考虑当前空间的使用率和可用性。
+                """
+                
+                messages = [
+                    {"role": "system", "content": "你是一个专业的学习空间顾问，擅长根据学习需求推荐最合适的学习空间。"},
+                    {"role": "user", "content": prompt}
+                ]
+                
+                response = deepseek_ai.sync_generate_response(messages)
+                
+                if "error" in response:
+                    st.error(f"生成空间推荐时出现错误: {response.get('error', '未知错误')}")
+                else:
+                    try:
+                        recommendation = response["choices"][0]["message"]["content"]
+                        st.markdown("## 学习空间推荐")
+                        st.markdown(recommendation)
+                        
+                        # 添加预约按钮
+                        if st.button("预约推荐空间"):
+                            st.success("预约请求已发送，请等待确认。")
+                    except (KeyError, IndexError):
+                        st.error("处理AI响应时出现错误，请稍后再试。")
+
+# 添加学习行为智能分析功能
+
+def render_learning_behavior_analysis():
+    """基于DeepSeek的学习行为智能分析"""
+    st.subheader("学习行为智能分析")
+    
+    # 分析选项
+    analysis_period = st.selectbox(
+        "分析周期",
+        ["今日", "本周", "本月", "本学期"]
+    )
+    
+    analysis_focus = st.multiselect(
+        "分析重点",
+        ["学习时间分布", "学习空间偏好", "学习资源使用", "学习效果评估", "学习行为模式"],
+        default=["学习时间分布", "学习行为模式"]
+    )
+    
+    # 生成模拟数据
+    if analysis_period == "今日":
+        time_range = 24
+        time_unit = "小时"
+    elif analysis_period == "本周":
+        time_range = 7
+        time_unit = "天"
+    elif analysis_period == "本月":
+        time_range = 30
+        time_unit = "天"
+    else:
+        time_range = 16
+        time_unit = "周"
+    
+    behavior_data = {
+        "时间分布": {
+            "labels": [str(i) for i in range(time_range)],
+            "学习时长": [random.uniform(0.5, 4.0) for _ in range(time_range)],
+            "专注度": [random.uniform(0.6, 0.95) for _ in range(time_range)]
+        },
+        "空间偏好": {
+            "传统学习空间": random.uniform(0.1, 0.3),
+            "休闲学习空间": random.uniform(0.1, 0.2),
+            "技能学习空间": random.uniform(0.1, 0.2),
+            "协作学习空间": random.uniform(0.1, 0.2),
+            "个性学习空间": random.uniform(0.1, 0.2),
+            "创新学习空间": random.uniform(0.05, 0.15),
+            "展演学习空间": random.uniform(0.05, 0.1)
+        },
+        "资源使用": {
+            "视频资源": random.uniform(0.2, 0.4),
+            "文本资源": random.uniform(0.2, 0.4),
+            "交互资源": random.uniform(0.1, 0.3),
+            "实践资源": random.uniform(0.1, 0.3),
+            "评估资源": random.uniform(0.05, 0.2)
+        },
+        "学习效果": {
+            "知识掌握": [random.uniform(0.7, 0.95) for _ in range(5)],
+            "技能提升": [random.uniform(0.6, 0.9) for _ in range(5)],
+            "学习满意度": [random.uniform(0.75, 0.95) for _ in range(5)]
+        }
+    }
+    
+    # 显示基础分析图表
+    if "学习时间分布" in analysis_focus:
+        st.subheader("学习时间分布")
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=behavior_data["时间分布"]["labels"],
+            y=behavior_data["时间分布"]["学习时长"],
+            name="学习时长(小时)",
+            marker_color="#1E88E5"
+        ))
+        fig.add_trace(go.Scatter(
+            x=behavior_data["时间分布"]["labels"],
+            y=behavior_data["时间分布"]["专注度"],
+            name="专注度",
+            mode="lines+markers",
+            yaxis="y2",
+            marker=dict(color="#FFC107"),
+            line=dict(color="#FFC107")
+        ))
+        fig.update_layout(
+            title=f"{analysis_period}学习时间分布",
+            xaxis_title=f"{time_unit}",
+            yaxis=dict(title="学习时长(小时)"),
+            yaxis2=dict(
+                title="专注度",
+                overlaying="y",
+                side="right",
+                range=[0, 1]
+            ),
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    if "学习空间偏好" in analysis_focus:
+        st.subheader("学习空间偏好")
+        fig = px.pie(
+            values=list(behavior_data["空间偏好"].values()),
+            names=list(behavior_data["空间偏好"].keys()),
+            title="学习空间使用分布"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # AI增强分析
+    st.subheader("AI增强分析")
+    
+    if st.button("生成AI分析报告"):
+        with st.spinner("AI正在分析学习行为数据..."):
+            # 调用DeepSeek进行分析
+            deepseek_ai = DeepSeekAI()
+            prompt = f"""
+            请分析以下学习行为数据，提供深入见解和改进建议:
+            
+            分析周期: {analysis_period}
+            分析重点: {', '.join(analysis_focus)}
+            
+            学习行为数据:
+            {json.dumps(behavior_data, ensure_ascii=False)}
+            
+            请提供:
+            1. 学习行为模式分析
+            2. 学习效率评估
+            3. 学习习惯优缺点
+            4. 针对性改进建议
+            5. 未来学习规划建议
+            
+            请确保分析深入、具体，并提供可操作的建议。
+            """
+            
+            messages = [
+                {"role": "system", "content": "你是一个专业的学习行为分析专家，擅长分析学习数据并提供个性化的学习建议。"},
+                {"role": "user", "content": prompt}
+            ]
+            
+            response = deepseek_ai.sync_generate_response(messages)
+            
+            if "error" in response:
+                st.error(f"生成分析报告时出现错误: {response.get('error', '未知错误')}")
+            else:
+                try:
+                    analysis_report = response["choices"][0]["message"]["content"]
+                    st.markdown("## 学习行为分析报告")
+                    st.markdown(analysis_report)
+                    
+                    # 添加下载按钮
+                    st.download_button(
+                        "下载分析报告",
+                        analysis_report,
+                        file_name=f"学习行为分析报告_{analysis_period}.md",
+                        mime="text/markdown"
+                    )
+                except (KeyError, IndexError):
+                    st.error("处理AI响应时出现错误，请稍后再试。")
+
+# 添加智能学习诊断功能
+
+def render_learning_diagnosis():
+    """基于DeepSeek的智能学习诊断"""
+    st.subheader("智能学习诊断")
+    
+    # 学习者信息输入
+    with st.form("learning_diagnosis_form"):
+        learning_subject = st.text_input("学习科目/领域")
+        current_level = st.selectbox("当前水平", ["初学者", "基础", "中级", "高级", "专家"])
+        
+        learning_challenges = st.text_area(
+            "学习中遇到的困难",
+            placeholder="例如：难以理解某些概念、记忆效果不佳、缺乏学习动力等"
+        )
+        
+        learning_goals = st.text_area(
+            "学习目标",
+            placeholder="例如：掌握核心概念、通过考试、应用于实际项目等"
+        )
+        
+        learning_methods = st.multiselect(
+            "当前学习方法",
+            ["课堂学习", "自学", "小组学习", "在线课程", "实践操作", "阅读", "视频学习", "其他"]
+        )
+        
+        learning_time = st.slider("每周学习时间(小时)", 1, 40, 10)
+        
+        submit = st.form_submit_button("开始诊断")
+        
+        if submit:
+            if not learning_subject or not learning_challenges or not learning_goals:
+                st.error("请填写学习科目、困难和目标")
+            else:
+                with st.spinner("AI正在进行学习诊断..."):
+                    # 构建诊断请求
+                    diagnosis_request = {
+                        "subject": learning_subject,
+                        "level": current_level,
+                        "challenges": learning_challenges,
+                        "goals": learning_goals,
+                        "methods": learning_methods,
+                        "time": learning_time
+                    }
+                    
+                    # 调用DeepSeek进行诊断
+                    deepseek_ai = DeepSeekAI()
+                    prompt = f"""
+                    请对以下学习情况进行全面诊断，并提供改进方案:
+                    
+                    学习科目: {learning_subject}
+                    当前水平: {current_level}
+                    学习困难: {learning_challenges}
+                    学习目标: {learning_goals}
+                    学习方法: {', '.join(learning_methods) if learning_methods else '未指定'}
+                    每周学习时间: {learning_time}小时
+                    
+                    请提供:
+                    1. 学习问题诊断
+                    2. 学习方法评估
+                    3. 时间管理建议
+                    4. 针对性学习策略
+                    5. 资源推荐
+                    6. 学习计划调整
+                    
+                    请确保诊断全面、具体，并提供可操作的改进方案。
+                    """
+                    
+                    messages = [
+                        {"role": "system", "content": "你是一个专业的学习诊断专家，擅长分析学习问题并提供个性化的学习改进方案。"},
+                        {"role": "user", "content": prompt}
+                    ]
+                    
+                    response = deepseek_ai.sync_generate_response(messages)
+                    
+                    if "error" in response:
+                        st.error(f"生成诊断报告时出现错误: {response.get('error', '未知错误')}")
+                    else:
+                        try:
+                            diagnosis_report = response["choices"][0]["message"]["content"]
+                            st.markdown("## 学习诊断报告")
+                            st.markdown(diagnosis_report)
+                            
+                            # 添加下载和分享选项
+                            col1, col2 = st.columns(2)
+                            with col1:
+                                st.download_button(
+                                    "下载诊断报告",
+                                    diagnosis_report,
+                                    file_name=f"{learning_subject}_学习诊断报告.md",
+                                    mime="text/markdown"
+                                )
+                            with col2:
+                                st.button("分享诊断报告", help="此功能将在未来版本中实现")
+                        except (KeyError, IndexError):
+                            st.error("处理AI响应时出现错误，请稍后再试。")
+
+# 添加帮助页面
+def render_help_page():
+    """渲染帮助页面"""
+    st.title("帮助中心")
+    
+    # 使用手风琴组件组织帮助内容
+    with st.expander("🔍 如何使用AI助手", expanded=True):
+        st.markdown("""
+        ### AI助手使用指南
+        
+        1. **基本对话**：在输入框中输入您的问题，点击"发送"按钮获取AI回复。
+        
+        2. **快速分析**：点击快速分析选项，可以快速获取特定主题的分析结果。
+        
+        3. **清空对话**：点击"清空对话"按钮可以重新开始对话。
+        
+        4. **数据分析**：您可以要求AI助手分析学习数据，提供学习建议。
+        
+        5. **教育咨询**：您可以咨询任何教育相关的问题，AI助手会尽力回答。
+        """)
+    
+    with st.expander("⚙️ API配置说明"):
+        st.markdown("""
+        ### DeepSeek API配置指南
+        
+        1. **获取API密钥**：访问DeepSeek官网获取您的API密钥。
+        
+        2. **配置API**：在"设置"页面的"API配置"标签页中输入您的API密钥。
+        
+        3. **选择模型**：根据您的需求选择合适的DeepSeek模型。
+        
+        4. **测试连接**：配置完成后，点击"测试API连接"确认连接是否成功。
+        
+        5. **故障排除**：如果连接失败，请检查API密钥是否正确，或查看错误详情。
+        """)
+    
+    with st.expander("📊 数据分析功能"):
+        st.markdown("""
+        ### 数据分析功能说明
+        
+        1. **物理空间分析**：分析物理学习空间的使用情况、满意度和优化建议。
+        
+        2. **虚拟空间分析**：分析在线学习平台的使用情况和学习效果。
+        
+        3. **泛在空间分析**：整合分析跨场景的学习数据。
+        
+        4. **趋势分析**：分析学习数据的时间趋势和预测未来趋势。
+        
+        5. **AI增强分析**：使用AI深度分析学习数据，提供更深入的见解。
+        """)
+    
+    with st.expander("❓ 常见问题"):
+        st.markdown("""
+        ### 常见问题解答
+        
+        1. **AI助手无法响应**：请检查API配置是否正确，或查看错误详情。
+        
+        2. **数据不显示**：请检查数据源连接，或尝试刷新页面。
+        
+        3. **系统响应缓慢**：可能是数据量过大或网络问题，请稍后再试。
+        
+        4. **API错误**：请查看错误详情，常见错误包括认证失败(401)和付款问题(402)。
+        
+        5. **功能建议**：如有功能建议，请联系系统管理员。
+        """)
+    
+    # 添加联系信息
+    st.markdown("---")
+    st.markdown("### 联系我们")
+    st.markdown("如有其他问题，请联系系统管理员：admin@example.com")
 
 if __name__ == "__main__":
     main() 
