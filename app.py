@@ -1,22 +1,25 @@
+# 标准库导入
+import os
+import json
+import time
+import random  # 添加这行
+import hashlib
+import logging
+import secrets
+from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional
+from io import BytesIO
+
+# 第三方库导入
 import streamlit as st
-import plotly.graph_objects as go
-import plotly.express as px
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
-import random
-import hashlib
-import json
-import os
-import time
-from io import BytesIO
-from dotenv import load_dotenv
-import secrets
-import logging
+import plotly.graph_objects as go
+import plotly.express as px
 import requests
-import asyncio
-import aiohttp
-from typing import Dict, Any, List, Optional
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+from dotenv import load_dotenv
 from reportlab.pdfgen import canvas
 
 # 国际化支持
@@ -103,15 +106,9 @@ def get_text(key):
 
 # 页面配置
 st.set_page_config(
-    page_title="5A智慧学习空间数据大屏",
+    page_title="基于AIGC的智慧学习空间",
     page_icon="🎓",
-    layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={
-        'Get Help': 'https://your-help-url',
-        'Report a bug': "https://your-bug-report-url",
-        'About': "# 5A智慧学习空间数据大屏\n 基于'5A'智慧学习范式的未来学习空间分析与可视化平台"
-    }
+    layout="wide"
 )
 
 # 添加环境变量支持
@@ -165,10 +162,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 添加主标题和副标题
-st.markdown("""
-<div class="title">5A智慧学习空间数据大屏</div>
-<div class="subtitle">基于"5A"智慧学习范式的未来学习空间分析与可视化</div>
-""", unsafe_allow_html=True)
+st.title("基于AIGC的智慧学习空间")
+st.markdown("### 智能化学习空间分析与可视化平台")
 
 # 配置日志
 logging.basicConfig(
@@ -1979,160 +1974,239 @@ def preload_data():
     if 'preloaded_data' not in st.session_state:
         st.session_state.preloaded_data = fetch_data()
 
-# 在AuthConfig类后添加DeepSeek API集成类
-class DeepSeekAI:
+# 在DeepSeekAI类之前添加基础AI类
+class BaseAI:
+    """AI模型基类"""
     def __init__(self):
-        self.api_key = os.getenv('DEEPSEEK_API_KEY')
-        self.api_url = os.getenv('DEEPSEEK_API_URL', 'https://api.deepseek.com')
-        self.model = os.getenv('DEEPSEEK_MODEL', 'deepseek-chat')
-        
-        if not self.api_key:
-            raise ValueError("DeepSeek API密钥未配置")
+        self.name = "Base AI"
     
-    def _get_headers(self):
-        """确保API密钥格式正确"""
-        # 检查是否已经包含Bearer前缀
-        if self.api_key.startswith('Bearer '):
-            auth_header = self.api_key
-        else:
-            auth_header = f"Bearer {self.api_key}"
-            
-        return {
-            "Authorization": auth_header,
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
-    
-    async def generate_response(self, messages, **kwargs):
-        async with aiohttp.ClientSession() as session:
-            headers = self._get_headers()
-            data = {
-                "model": self.model,
-                "messages": messages,
-                **kwargs
-            }
-            
-            try:
-                async with session.post(
-                    f"{self.api_url}/v1/chat/completions",
-                    headers=headers,
-                    json=data
-                ) as response:
-                    if response.status == 200:
-                        return await response.json()
-                    else:
-                        error_text = await response.text()
-                        return {"error": f"API请求失败({response.status}): {error_text}"}
-            except Exception as e:
-                return {"error": str(e)}
+    def generate_response(self, messages, **kwargs):
+        raise NotImplementedError
     
     def sync_generate_response(self, messages, **kwargs):
-        """同步版本的生成响应方法"""
-        headers = self._get_headers()
-        data = {
-            "model": self.model,
-            "messages": messages,
-            **kwargs
+        return self.generate_response(messages, **kwargs)
+
+class DeepSeekAI(BaseAI):
+    """DeepSeek AI实现"""
+    def __init__(self):
+        super().__init__()
+        self.name = "DeepSeek"
+        self.api_key = "sk-fd1c7c81430b433daffcc8ebee130906"
+        self.base_url = "https://api.deepseek.com/v1"
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
         }
-        
+        self.session = requests.Session()
+        retry = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[500, 502, 503, 504]
+        )
+        self.session.mount('https://', HTTPAdapter(max_retries=retry))
+
+    def generate_response(self, messages, **kwargs):
         try:
-            response = requests.post(
-                f"{self.api_url}/v1/chat/completions",
-                headers=headers,
-                json=data,
-                timeout=30
+            response = self.session.post(
+                f"{self.base_url}/chat/completions",
+                headers=self.headers,
+                json={
+                    "model": "deepseek-chat",
+                    "messages": messages,
+                    "temperature": kwargs.get('temperature', 0.7),
+                    "max_tokens": kwargs.get('max_tokens', 2000),
+                },
+                timeout=60
             )
             
             if response.status_code == 200:
                 return response.json()
             else:
-                return {"error": f"API请求失败({response.status_code}): {response.text}"}
+                error_msg = f"API调用失败({response.status_code}): {response.text}"
+                st.error(error_msg)
+                return {"error": error_msg}
         except Exception as e:
-            return {"error": str(e)}
-    
-    def sync_generate_response_with_retry(self, messages, temperature=0.7, max_tokens=500, max_retries=3):
-        """带重试机制的同步响应生成"""
-        for retry in range(max_retries):
-            try:
-                response = self.sync_generate_response(
-                    messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens
-                )
-                
-                if "error" not in response:
-                    return response
-                
-                # 如果是服务器错误，等待后重试
-                if "500" in str(response.get("error", "")):
-                    time.sleep((retry + 1) * 2)
-                    continue
-                    
-                return response
-                
-            except Exception as e:
-                if retry == max_retries - 1:
-                    return {"error": str(e)}
-                time.sleep((retry + 1) * 2)
+            error_msg = f"发生错误: {str(e)}"
+            st.error(error_msg)
+            return {"error": error_msg}
+
+class KimiAI(BaseAI):
+    """Kimi AI实现"""
+    def __init__(self):
+        super().__init__()
+        self.name = "Kimi"
+        self.api_key = "sk-GJfQoPNHu86Ov16Zvnpz86zo7PNPPYJFaCY1oE3XRTtMXqLb"
+        self.base_url = "https://api.moonshot.cn/v1"
+        self.headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        # 设置重试会话
+        self.session = requests.Session()
+        retry = Retry(
+            total=3,
+            backoff_factor=0.5,
+            status_forcelist=[500, 502, 503, 504]
+        )
+        self.session.mount('https://', HTTPAdapter(max_retries=retry))
+
+    def generate_response(self, messages, **kwargs):
+        try:
+            response = self.session.post(
+                f"{self.base_url}/chat/completions",
+                headers=self.headers,
+                json={
+                    "model": "moonshot-v1-8k",
+                    "messages": messages,
+                    "temperature": kwargs.get('temperature', 0.7),
+                    "max_tokens": kwargs.get('max_tokens', 2000),
+                },
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                error_msg = f"Kimi API调用失败({response.status_code}): {response.text}"
+                st.error(error_msg)
+                return {"error": error_msg}
+        except Exception as e:
+            error_msg = f"Kimi API错误: {str(e)}"
+            st.error(error_msg)
+            return {"error": error_msg}
+
+class ErnieAI(BaseAI):
+    """文心一言AI实现"""
+    def __init__(self):
+        super().__init__()
+        self.name = "文心一言"
+        # 使用正确的API密钥
+        self.api_key = "ALTAK-wkA24WktBRKDpY6tDo8Lh"  # API Key
+        self.secret_key = "1ce45e39bb90c1a26460babd8a719db3fa01cd56"  # Secret Key
+        self.access_token = None
+        self.base_url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions"
         
-        return {"error": "达到最大重试次数"}
+        # 初始化时获取access token
+        self._refresh_token()
+        
+        self.headers = {
+            "Content-Type": "application/json"
+        }
 
-# 添加AI助手界面函数
+    def _refresh_token(self):
+        """获取access token"""
+        url = "https://aip.baidubce.com/oauth/2.0/token"
+        params = {
+            "grant_type": "client_credentials",
+            "client_id": self.api_key,
+            "client_secret": self.secret_key
+        }
+        
+        try:
+            response = requests.post(url, params=params)
+            result = response.json()
+            
+            if 'access_token' in result:
+                self.access_token = result['access_token']
+                st.success("成功获取access token")
+            else:
+                st.error(f"获取access token失败: {result.get('error_description', '未知错误')}")
+                
+        except Exception as e:
+            st.error(f"获取access token错误: {str(e)}")
 
+    def generate_response(self, messages, **kwargs):
+        """生成回复"""
+        if not self.access_token:
+            self._refresh_token()
+            if not self.access_token:
+                return {"error": "无法获取access token"}
+
+        try:
+            url = f"{self.base_url}?access_token={self.access_token}"
+            
+            data = {
+                "messages": messages,
+                "temperature": kwargs.get('temperature', 0.7)
+            }
+            
+            response = requests.post(url, headers=self.headers, json=data)
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                error_msg = f"文心一言API调用失败({response.status_code}): {response.text}"
+                st.error(error_msg)
+                return {"error": error_msg}
+                
+        except Exception as e:
+            error_msg = f"文心一言API错误: {str(e)}"
+            st.error(error_msg)
+            return {"error": error_msg}
+
+# 在render_ai_assistant函数中添加模型选择
 def render_ai_assistant():
     """渲染AI助手界面"""
-    st.subheader("DeepSeek AI 智能助手")
+    st.subheader("AI智能助手")
     
+    # 选择AI模型
+    ai_models = {
+        "DeepSeek": DeepSeekAI,
+        "Kimi": KimiAI,
+        "文心一言": ErnieAI,
+        "豆包": DouBaoAI
+    }
+    
+    selected_model = st.selectbox(
+        "选择AI模型",
+        list(ai_models.keys()),
+        index=0,
+        key="selected_ai_model"
+    )
+
     # 初始化会话状态
-    if 'ai_messages' not in st.session_state:
-        st.session_state.ai_messages = [
-            {"role": "system", "content": "你是5A智慧学习空间的AI助手，可以帮助用户分析学习数据、提供学习建议、回答教育相关问题。"},
-            {"role": "assistant", "content": "您好！我是基于DeepSeek的5A智慧学习空间AI助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？"}
-        ]
-    
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
+
     # 显示对话历史
-    for message in st.session_state.ai_messages:
-        if message["role"] != "system":
-            if message["role"] == "user":
-                st.markdown(f"**您:** {message['content']}")
-            else:
-                st.markdown(f"**AI助手:** {message['content']}")
-    
-    # 用户输入
-    with st.form(key="ai_assistant_form", clear_on_submit=True):
-        user_input = st.text_area("请输入您的问题:")
-        submit = st.form_submit_button("发送")
-        clear = st.form_submit_button("清空对话")
+    for message in st.session_state.messages:
+        if message["role"] == "user":
+            st.write(f"您: {message['content']}")
+        else:
+            st.write(f"AI助手({selected_model}): {message['content']}")
+
+    # 用户输入和按钮
+    with st.form(key="chat_form"):
+        user_input = st.text_area("请输入您的问题:", key="chat_input")
+        col1, col2 = st.columns([1, 5])
         
+        with col1:
+            submit = st.form_submit_button("发送")
+        with col2:
+            clear = st.form_submit_button("清空对话")
+
         if submit and user_input:
-            # 添加用户消息
-            st.session_state.ai_messages.append({"role": "user", "content": user_input})
+            # 添加用户消息到历史记录
+            st.session_state.messages.append({"role": "user", "content": user_input})
             
-            # 调用API获取响应
+            # 创建AI实例并生成回复
+            ai_instance = ai_models[selected_model]()
             with st.spinner("AI思考中..."):
-                deepseek_ai = DeepSeekAI()
-                response = deepseek_ai.generate_response(
-                    st.session_state.ai_messages,
-                    temperature=0.7
-                )
+                response = ai_instance.generate_response(st.session_state.messages)
                 
-                if "error" in response:
-                    error_message = f"获取AI响应时出错: {response.get('error', '未知错误')}"
-                    st.session_state.ai_messages.append({"role": "assistant", "content": f"抱歉，{error_message}"})
+                if "error" not in response:
+                    if "choices" in response and len(response["choices"]) > 0:
+                        ai_message = response["choices"][0]["message"]["content"]
+                        st.session_state.messages.append({"role": "assistant", "content": ai_message})
+                    else:
+                        st.error("AI响应格式错误")
                 else:
-                    try:
-                        ai_response = response["choices"][0]["message"]["content"]
-                        st.session_state.ai_messages.append({"role": "assistant", "content": ai_response})
-                    except (KeyError, IndexError) as e:
-                        st.session_state.ai_messages.append({"role": "assistant", "content": f"抱歉，处理响应时出错: {str(e)}"})
+                    st.error(f"生成回复时出错: {response['error']}")
             
             st.rerun()
-        
+
         if clear:
-            # 保留系统消息，清空对话历史
-            system_message = next((msg for msg in st.session_state.ai_messages if msg["role"] == "system"), None)
-            st.session_state.ai_messages = [system_message] if system_message else []
-            st.session_state.ai_messages.append({"role": "assistant", "content": "对话已清空。有什么可以帮您的吗？"})
+            st.session_state.messages = []
             st.rerun()
 
 # 添加学习路径推荐功能
@@ -3630,13 +3704,20 @@ def render_learning_space():
         with col1:
             location = st.selectbox(
                 "选择校区",
-                ["主校区", "新校区", "城市校区"]
+                ["主校区", "新校区", "城市校区", "校外实践基地"]  # 添加校外实践基地选项
             )
         with col2:
-            space_type = st.selectbox(
-                "空间类型",
-                ["自习室", "图书馆", "实验室", "研讨室"]
-            )
+            # 根据location动态更新空间类型选项
+            if location == "校外实践基地":
+                space_type = st.selectbox(
+                    "空间类型",
+                    ["企业实训基地", "科研实践基地", "创新创业基地", "产学研基地"]
+                )
+            else:
+                space_type = st.selectbox(
+                    "空间类型",
+                    ["自习室", "图书馆", "实验室", "研讨室"]
+                )
         
         # 时间选择
         time_slot = st.select_slider(
@@ -3646,13 +3727,23 @@ def render_learning_space():
         )
         
         # 生成示例数据
-        spaces = pd.DataFrame({
-            'name': ['A101自习室', 'B203研讨室', '图书馆3楼', '创新实验室'],
-            'type': ['自习室', '研讨室', '图书馆', '实验室'],
-            'capacity': [100, 20, 200, 50],
-            'current': [65, 5, 120, 30],
-            'rating': [4.5, 4.8, 4.6, 4.7]
-        })
+        if location == "校外实践基地":
+            spaces = pd.DataFrame({
+                'name': ['腾讯实训基地', '华为研发中心', '创新孵化园', '产业研究院'],
+                'type': ['企业实训基地', '科研实践基地', '创新创业基地', '产学研基地'],
+                'capacity': [50, 30, 100, 80],
+                'current': [35, 20, 60, 45],
+                'rating': [4.8, 4.9, 4.7, 4.8],
+                'distance': ['5km', '3km', '8km', '6km']  # 添加距离信息
+            })
+        else:
+            spaces = pd.DataFrame({
+                'name': ['A101自习室', 'B203研讨室', '图书馆3楼', '创新实验室'],
+                'type': ['自习室', '研讨室', '图书馆', '实验室'],
+                'capacity': [100, 20, 200, 50],
+                'current': [65, 5, 120, 30],
+                'rating': [4.5, 4.8, 4.6, 4.7]
+            })
         
         # 显示推荐空间
         st.subheader("推荐空间")
@@ -3664,143 +3755,14 @@ def render_learning_space():
                     st.write(f"类型: {space['type']}")
                 with col2:
                     st.write(f"容量: {space['current']}/{space['capacity']}")
+                    if location == "校外实践基地":
+                        st.write(f"距离: {space['distance']}")  # 显示距离信息
                 with col3:
                     st.write(f"评分: {space['rating']}⭐")
                 st.progress(space['current']/space['capacity'])
+                if location == "校外实践基地":
+                    st.info(f"📍 点击[查看地图](https://map.baidu.com/search/{space['name']})")  # 添加地图链接
                 st.write("---")
-    
-    with tab2:
-        st.subheader("虚拟学习空间推荐")
-        
-        # 学习目标选择
-        learning_goal = st.selectbox(
-            "学习目标",
-            ["课程学习", "技能提升", "考试准备", "研究探索"]
-        )
-        
-        # 学习方式
-        learning_style = st.multiselect(
-            "学习方式",
-            ["视频课程", "在线练习", "直播互动", "资源下载"],
-            ["视频课程", "在线练习"]
-        )
-        
-        # 生成虚拟空间推荐
-        virtual_spaces = [
-            {
-                "name": "智慧课堂",
-                "description": "实时互动的在线课堂平台",
-                "features": ["直播教学", "实时答疑", "课堂互动"],
-                "rating": 4.8
-            },
-            {
-                "name": "知识库",
-                "description": "海量学习资源库",
-                "features": ["视频课程", "电子书籍", "试题库"],
-                "rating": 4.6
-            },
-            {
-                "name": "实践平台",
-                "description": "在线实验和练习平台",
-                "features": ["在线实验", "自动评分", "即时反馈"],
-                "rating": 4.7
-            }
-        ]
-        
-        # 显示虚拟空间
-        for space in virtual_spaces:
-            with st.expander(f"{space['name']} - ⭐{space['rating']}"):
-                st.write(space['description'])
-                st.write("**主要功能：**")
-                for feature in space['features']:
-                    st.write(f"- {feature}")
-    
-    with tab3:
-        st.subheader("泛在学习空间推荐")
-        
-        # 场景选择
-        scenario = st.radio(
-            "学习场景",
-            ["通勤学习", "碎片时间", "户外学习", "团队协作"]
-        )
-        
-        # 设备选择
-        device = st.multiselect(
-            "可用设备",
-            ["手机", "平板", "笔记本", "智能手表"],
-            ["手机"]
-        )
-        
-        # 推荐学习应用
-        st.subheader("推荐应用")
-        apps = [
-            {
-                "name": "移动课堂",
-                "type": "学习应用",
-                "size": "45MB",
-                "rating": 4.5,
-                "features": ["离线下载", "语音学习", "进度同步"]
-            },
-            {
-                "name": "知识笔记",
-                "type": "笔记工具",
-                "size": "32MB",
-                "rating": 4.7,
-                "features": ["快速记录", "云端同步", "知识图谱"]
-            },
-            {
-                "name": "学习助手",
-                "type": "工具类",
-                "size": "28MB",
-                "rating": 4.6,
-                "features": ["时间管理", "学习计划", "提醒服务"]
-            }
-        ]
-        
-        for app in apps:
-            col1, col2, col3 = st.columns([3, 2, 1])
-            with col1:
-                st.write(f"**{app['name']}**")
-                st.write(f"类型: {app['type']}")
-            with col2:
-                st.write(f"大小: {app['size']}")
-            with col3:
-                st.write(f"评分: {app['rating']}⭐")
-                st.button("下载", key=f"download_{app['name']}")
-            st.write("主要功能：")
-            for feature in app['features']:
-                st.write(f"- {feature}")
-            st.write("---")
-        
-        # AI智能推荐
-        if st.button("获取个性化推荐"):
-            with st.spinner("AI分析中..."):
-                try:
-                    deepseek_ai = DeepSeekAI()
-                    prompt = f"""
-                    基于以下学习场景生成个性化学习空间推荐：
-                    1. 场景：{scenario}
-                    2. 设备：{', '.join(device)}
-                    3. 学习特点：移动性、便捷性、随时性
-                    
-                    请推荐：
-                    1. 适合的学习方式
-                    2. 推荐的学习工具
-                    3. 学习建议
-                    """
-                    
-                    response = deepseek_ai.sync_generate_response(
-                        [{"role": "user", "content": prompt}],
-                        temperature=0.7
-                    )
-                    
-                    if "error" not in response:
-                        st.write(response["choices"][0]["message"]["content"])
-                    else:
-                        st.error("生成推荐失败，请稍后再试")
-                        
-                except Exception as e:
-                    st.error(f"生成推荐时出错: {str(e)}")
 
 def render_settings():
     """渲染设置页面"""
@@ -3984,6 +3946,76 @@ def render_logout_confirm():
             if st.button("取消", type="secondary"):
                 st.session_state.sidebar_option = "dashboard"
                 st.rerun()
+
+# 在其他AI类的定义后添加豆包AI类
+class DouBaoAI(BaseAI):
+    """豆包AI实现"""
+    def __init__(self):
+        super().__init__()
+        self.name = "豆包"
+        # 使用正确的API密钥
+        self.api_key = "ALTAK-wkA24WktBRKDpY6tDo8Lh"  # API Key
+        self.secret_key = "1ce45e39bb90c1a26460babd8a719db3fa01cd56"  # Secret Key
+        self.access_token = None
+        self.base_url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions"
+        
+        # 初始化时获取access token
+        self._refresh_token()
+        
+        self.headers = {
+            "Content-Type": "application/json"
+        }
+
+    def _refresh_token(self):
+        """获取access token"""
+        url = "https://aip.baidubce.com/oauth/2.0/token"
+        params = {
+            "grant_type": "client_credentials",
+            "client_id": self.api_key,
+            "client_secret": self.secret_key
+        }
+        
+        try:
+            response = requests.post(url, params=params)
+            result = response.json()
+            
+            if 'access_token' in result:
+                self.access_token = result['access_token']
+                st.success("成功获取access token")
+            else:
+                st.error(f"获取access token失败: {result.get('error_description', '未知错误')}")
+                
+        except Exception as e:
+            st.error(f"获取access token错误: {str(e)}")
+
+    def generate_response(self, messages, **kwargs):
+        """生成回复"""
+        if not self.access_token:
+            self._refresh_token()
+            if not self.access_token:
+                return {"error": "无法获取access token"}
+
+        try:
+            url = f"{self.base_url}?access_token={self.access_token}"
+            
+            data = {
+                "messages": messages,
+                "temperature": kwargs.get('temperature', 0.7)
+            }
+            
+            response = requests.post(url, headers=self.headers, json=data)
+            
+            if response.status_code == 200:
+                return response.json()
+            else:
+                error_msg = f"豆包API调用失败({response.status_code}): {response.text}"
+                st.error(error_msg)
+                return {"error": error_msg}
+                
+        except Exception as e:
+            error_msg = f"豆包API错误: {str(e)}"
+            st.error(error_msg)
+            return {"error": error_msg}
 
 if __name__ == "__main__":
     main() 
