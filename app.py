@@ -17,6 +17,7 @@ import requests
 import asyncio
 import aiohttp
 from typing import Dict, Any, List, Optional
+from reportlab.pdfgen import canvas
 
 # 国际化支持
 LANGUAGES = {
@@ -47,8 +48,58 @@ LANGUAGES = {
 }
 
 def get_text(key):
-    lang = st.session_state.get("language", "中文")
-    return LANGUAGES[lang][key]
+    """获取多语言文本"""
+    texts = {
+        "title": {
+            "en": "5A Smart Learning Space Dashboard",
+            "zh": "5A智慧学习空间数据大屏"
+        },
+        "dashboard": {
+            "en": "Data Dashboard",
+            "zh": "数据大屏"
+        },
+        "analysis": {
+            "en": "Data Analysis",
+            "zh": "数据分析"
+        },
+        "ai_assistant": {
+            "en": "AI Assistant",
+            "zh": "AI助手"
+        },
+        "learning_space": {
+            "en": "Learning Space Recommendation",
+            "zh": "学习空间推荐"
+        },
+        "learning_path": {
+            "en": "Learning Path Planning",
+            "zh": "学习路径规划"
+        },
+        "learning_behavior": {
+            "en": "Learning Behavior Analysis",
+            "zh": "学习行为分析"
+        },
+        "learning_diagnosis": {
+            "en": "Learning Diagnosis",
+            "zh": "学习诊断"
+        },
+        "learning_tracker": {  # 新增
+            "en": "Learning Records",
+            "zh": "学习记录"
+        },
+        "help": {
+            "en": "Help Center",
+            "zh": "帮助中心"
+        },
+        "settings": {
+            "en": "Settings",
+            "zh": "设置"
+        },
+        "logout": {
+            "en": "Logout",
+            "zh": "注销"
+        }
+    }
+    return texts[key][st.session_state.language]
 
 # 页面配置
 st.set_page_config(
@@ -960,84 +1011,54 @@ class LearningSpaceModel:
 
 # 修改主应用入口
 def main():
-    # 初始化session_state
-    if 'page' not in st.session_state:
-        st.session_state.page = "login"
+    """主函数"""
+    # 初始化session state
+    if 'language' not in st.session_state:
+        st.session_state.language = 'zh'
+    if 'sidebar_option' not in st.session_state:
+        st.session_state.sidebar_option = 'dashboard'
     if 'logged_in' not in st.session_state:
         st.session_state.logged_in = False
-    if 'language' not in st.session_state:
-        st.session_state.language = "中文"
-    if 'sidebar_option' not in st.session_state:
-        st.session_state.sidebar_option = get_text("dashboard")
     
-    # 添加语言选择
-    st.sidebar.selectbox(
-        "Language/语言",
-        ["中文", "English"],
-        key="language"
-    )
-    
-    # 添加主题选择
-    theme = st.sidebar.selectbox(
-        "主题风格",
-        ["Light", "Dark", "Custom"],
-        key="theme"
-    )
+    # 应用主题
+    theme = st.session_state.get('theme', 'Light')
     apply_theme(theme)
     
     # 根据登录状态显示不同内容
     if not st.session_state.logged_in:
-        if st.session_state.page == "register":
+        if st.session_state.get('page') == "register":
             register_page()
-        elif st.session_state.page == "reset":
+        elif st.session_state.get('page') == "reset":
             reset_password_page()
         else:
             login_page()
     else:
-        st.title(f"{get_text('title')} - {st.session_state.username}")
+        # 渲染侧边栏
+        sidebar()
         
-        # 添加侧边栏选项
-        sidebar_option = st.sidebar.radio(
-            "选择操作",
-            [get_text("dashboard"), get_text("data_analysis"), "AI助手", "学习空间推荐", 
-             "学习路径规划", "学习行为分析", "学习诊断", "帮助中心", get_text("settings"), get_text("logout")],
-            key="sidebar_option"
-        )
-        
-        if sidebar_option == get_text("settings"):
-            change_password_page()
-        elif sidebar_option == get_text("logout"):
-            for key in st.session_state.keys():
-                del st.session_state[key]
-            st.rerun()
-        elif sidebar_option == get_text("data_analysis"):
-            st.subheader(get_text("data_analysis"))
-            analysis_type = st.selectbox(
-                "选择分析类型",
-                ["使用率趋势", "行为模式", "环境影响", "AI增强分析"]
-            )
-            if analysis_type == "使用率趋势":
-                st.plotly_chart(render_trend_analysis(), use_container_width=True)
-            elif analysis_type == "行为模式":
-                st.plotly_chart(render_learning_behavior_radar(), use_container_width=True)
-            elif analysis_type == "环境影响":
-                st.plotly_chart(render_space_efficiency_heatmap(), use_container_width=True)
-            else:
-                render_space_analysis()
-        elif sidebar_option == "AI助手":
-            render_ai_assistant()
-        elif sidebar_option == "学习空间推荐":
-            render_space_recommendation()
-        elif sidebar_option == "学习路径规划":
-            render_learning_path_recommendation()
-        elif sidebar_option == "学习行为分析":
-            render_learning_behavior_analysis()
-        elif sidebar_option == "学习诊断":
-            render_learning_diagnosis()
-        elif sidebar_option == "帮助中心":
-            render_help_page()
-        else:
+        # 根据侧边栏选项渲染不同页面
+        if st.session_state.sidebar_option == "dashboard":
             render_dashboard()
+        elif st.session_state.sidebar_option == "analysis":
+            render_analysis()
+        elif st.session_state.sidebar_option == "ai_assistant":
+            render_ai_assistant()
+        elif st.session_state.sidebar_option == "learning_space":
+            render_learning_space()
+        elif st.session_state.sidebar_option == "learning_path":
+            render_learning_path()
+        elif st.session_state.sidebar_option == "learning_behavior":
+            render_learning_behavior()
+        elif st.session_state.sidebar_option == "learning_diagnosis":
+            render_learning_diagnosis()
+        elif st.session_state.sidebar_option == "learning_tracker":
+            render_learning_tracker()
+        elif st.session_state.sidebar_option == "help":
+            render_help_page()
+        elif st.session_state.sidebar_option == "settings":
+            render_settings()
+        elif st.session_state.sidebar_option == "logout":
+            handle_logout()
 
 # 主题设置
 def apply_theme(theme):
@@ -1060,11 +1081,107 @@ def apply_theme(theme):
         </style>
         """, unsafe_allow_html=True)
 
-# 修改render_dashboard函数
+# 添加主题和样式配置
+def apply_custom_style():
+    """应用自定义样式"""
+    st.markdown("""
+        <style>
+        /* 主标题样式 */
+        .main-header {
+            color: #1E88E5;
+            font-size: 2.5rem;
+            font-weight: 600;
+            margin-bottom: 2rem;
+            text-align: center;
+            padding: 1rem;
+            background: linear-gradient(120deg, #fdfbfb 0%, #ebedee 100%);
+            border-radius: 10px;
+        }
+        
+        /* 子标题样式 */
+        .sub-header {
+            color: #424242;
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin: 1.5rem 0;
+            padding-left: 0.5rem;
+            border-left: 4px solid #1E88E5;
+        }
+        
+        /* 卡片容器样式 */
+        .stcard {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1rem;
+        }
+        
+        /* 数据指标样式 */
+        .metric-container {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+        
+        /* Tab样式优化 */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 2px;
+            margin-bottom: 1rem;
+        }
+        
+        .stTabs [data-baseweb="tab"] {
+            height: 50px;
+            white-space: pre-wrap;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            gap: 4px;
+            padding: 0.5rem 1rem;
+        }
+        
+        .stTabs [aria-selected="true"] {
+            background-color: #1E88E5 !important;
+            color: white !important;
+        }
+        
+        /* 按钮样式 */
+        .stButton>button {
+            background-color: #1E88E5;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 0.5rem 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .stButton>button:hover {
+            background-color: #1565C0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* 滑块样式 */
+        .stSlider div[data-baseweb="slider"] {
+            margin-top: 1rem;
+        }
+        
+        /* 分割线样式 */
+        hr {
+            margin: 2rem 0;
+            border: none;
+            border-top: 1px solid #e0e0e0;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
 def render_dashboard():
     """渲染主数据大屏"""
+    # 应用自定义样式
+    apply_custom_style()
+    
     # 添加页面标题和描述
-    st.title("🎓 智慧学习空间数据大屏")
+    st.markdown('<h1 class="main-header">🎓 智慧学习空间数据大屏</h1>', unsafe_allow_html=True)
     
     # 使用更美观的系统概述卡片
     st.markdown("""
@@ -1078,7 +1195,7 @@ def render_dashboard():
     
     # 添加自动刷新控制
     with st.sidebar:
-        st.subheader("⚙️ 控制面板")
+        st.markdown('<h3 class="sub-header">⚙️ 控制面板</h3>', unsafe_allow_html=True)
         auto_refresh = st.checkbox("自动刷新", value=st.session_state.get('auto_refresh', False))
         refresh_interval = st.slider("刷新间隔(秒)", 5, 300, 30)
         if auto_refresh:
@@ -1086,7 +1203,7 @@ def render_dashboard():
             time.sleep(refresh_interval)
             st.rerun()
     
-    # 使用tabs来组织不同空间的数据，添加图标
+    # 使用tabs来组织不同空间的数据
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "📍 物理空间", 
         "💻 虚拟空间", 
@@ -1096,32 +1213,209 @@ def render_dashboard():
     ])
     
     with tab1:
+        st.markdown('<div class="stcard">', unsafe_allow_html=True)
         render_physical_space()
+        st.markdown('</div>', unsafe_allow_html=True)
     
     with tab2:
+        st.markdown('<div class="stcard">', unsafe_allow_html=True)
         render_virtual_space()
+        st.markdown('</div>', unsafe_allow_html=True)
     
     with tab3:
+        st.markdown('<div class="stcard">', unsafe_allow_html=True)
         render_ubiquitous_space()
+        st.markdown('</div>', unsafe_allow_html=True)
     
     with tab4:
+        st.markdown('<div class="stcard">', unsafe_allow_html=True)
         st.plotly_chart(render_trend_analysis(), use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
     
     with tab5:
+        st.markdown('<div class="stcard">', unsafe_allow_html=True)
         render_ai_assistant()
+        st.markdown('</div>', unsafe_allow_html=True)
     
     # 添加底部状态栏
     st.markdown("---")
     cols = st.columns([1, 1, 1])
     with cols[0]:
-        st.markdown("**系统状态:** 🟢 正常运行中")
+        st.markdown("""
+        <div class="metric-container" style="text-align: left;">
+            <div style="color: #1E88E5;">
+                <span style="font-size: 1.2rem;">系统状态:</span>
+                <span style="color: #43A047;">🟢 正常运行中</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     with cols[1]:
-        st.markdown(f"**最后更新:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        st.markdown(f"""
+        <div class="metric-container" style="text-align: center;">
+            <div style="color: #1E88E5;">
+                <span style="font-size: 1.2rem;">最后更新:</span>
+                <span>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     with cols[2]:
-        if 'api_usage' in st.session_state:
-            st.markdown(f"**API调用次数:** {st.session_state.api_usage['calls']}")
+        api_calls = st.session_state.get('api_usage', {}).get('calls', 0)
+        st.markdown(f"""
+        <div class="metric-container" style="text-align: right;">
+            <div style="color: #1E88E5;">
+                <span style="font-size: 1.2rem;">API调用次数:</span>
+                <span>{api_calls}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+def plot_usage_trend():
+    """绘制使用趋势图表"""
+    # 生成示例数据
+    dates = pd.date_range(start='2024-01-01', end='2024-01-31', freq='D')
+    data = pd.DataFrame({
+        'date': dates,
+        'physical': np.random.uniform(60, 90, len(dates)),
+        'virtual': np.random.uniform(50, 80, len(dates)),
+        'ubiquitous': np.random.uniform(40, 70, len(dates))
+    })
+    
+    # 创建趋势图
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatter(
+        x=data['date'],
+        y=data['physical'],
+        name='物理空间',
+        mode='lines+markers',
+        line=dict(color='#1E88E5', width=2),
+        marker=dict(size=6)
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=data['date'],
+        y=data['virtual'],
+        name='虚拟空间',
+        mode='lines+markers',
+        line=dict(color='#43A047', width=2),
+        marker=dict(size=6)
+    ))
+    
+    fig.add_trace(go.Scatter(
+        x=data['date'],
+        y=data['ubiquitous'],
+        name='泛在空间',
+        mode='lines+markers',
+        line=dict(color='#FB8C00', width=2),
+        marker=dict(size=6)
+    ))
+    
+    fig.update_layout(
+        title=None,
+        xaxis_title='日期',
+        yaxis_title='使用率 (%)',
+        hovermode='x unified',
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1
+        ),
+        margin=dict(l=20, r=20, t=20, b=20)
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+def plot_popular_spaces():
+    """绘制热门空间排名"""
+    spaces = ['创新实验室', '协作学习区', '静思空间', '研讨室', '多媒体教室']
+    usage = [95, 88, 82, 75, 70]
+    
+    fig = go.Figure(go.Bar(
+        x=usage,
+        y=spaces,
+        orientation='h',
+        marker=dict(
+            color='#1E88E5',
+            line=dict(color='#1565C0', width=1)
+        )
+    ))
+    
+    fig.update_layout(
+        title=None,
+        xaxis_title='使用率 (%)',
+        yaxis_title=None,
+        margin=dict(l=20, r=20, t=20, b=20)
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+def plot_behavior_analysis():
+    """绘制学习行为分析雷达图"""
+    categories = ['专注度', '互动性', '持续时间', '资源利用', '学习效果']
+    values = [85, 78, 92, 65, 88]
+    
+    fig = go.Figure(data=go.Scatterpolar(
+        r=values,
+        theta=categories,
+        fill='toself',
+        line=dict(color='#1E88E5', width=2)
+    ))
+    
+    fig.update_layout(
+        polar=dict(
+            radialaxis=dict(
+                visible=True,
+                range=[0, 100]
+            )
+        ),
+        showlegend=False,
+        margin=dict(l=20, r=20, t=20, b=20)
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+
+def generate_ai_insights():
+    """生成AI分析洞察"""
+    try:
+        deepseek_ai = DeepSeekAI()
+        prompt = """
+        基于以下数据生成简短的分析洞察和建议：
+        
+        1. 空间使用率：85%
+        2. 访问人次：1,234
+        3. 用户满意度：92%
+        4. 活跃空间数：45
+        5. 热门空间：创新实验室、协作学习区
+        6. 学习行为特征：专注度高、互动性强
+        
+        请提供：
+        1. 关键发现（2-3点）
+        2. 改进建议（2-3点）
+        3. 未来预测（1-2点）
+        """
+        
+        messages = [
+            {"role": "system", "content": "你是一个专业的学习空间分析专家，擅长提供简洁、实用的分析见解。"},
+            {"role": "user", "content": prompt}
+        ]
+        
+        response = deepseek_ai.sync_generate_response_with_retry(
+            messages,
+            temperature=0.7,
+            max_tokens=300
+        )
+        
+        if "error" in response:
+            st.error(f"生成分析洞察时出错: {response.get('error', '未知错误')}")
         else:
-            st.markdown("**API调用次数:** 0")
+            analysis = response["choices"][0]["message"]["content"]
+            st.markdown(analysis)
+            
+    except Exception as e:
+        st.error(f"生成分析洞察时出错: {str(e)}")
 
 def render_space_distribution():
     """空间分布可视化"""
@@ -1688,207 +1982,100 @@ def preload_data():
 # 在AuthConfig类后添加DeepSeek API集成类
 class DeepSeekAI:
     def __init__(self):
-        # 从环境变量或会话状态获取API密钥
-        self.api_key = os.getenv('DEEPSEEK_API_KEY', '')
-        # 如果环境变量中没有，尝试从会话状态获取
-        if not self.api_key and 'deepseek_api_key' in st.session_state:
-            self.api_key = st.session_state.deepseek_api_key
-        
-        # 手动设置API密钥（临时解决方案）
-        if not self.api_key:
-            self.api_key = "sk-fd1c7c81430b433daffcc8ebee130906"
-        
-        # 不显示警告信息
-        # st.warning("DeepSeek API密钥未配置，请在设置页面配置API密钥")
-        
-        # 根据文档更新API基础URL
-        self.api_base = "https://api.deepseek.com"  # 不包含/v1
+        self.api_key = os.getenv('DEEPSEEK_API_KEY')
+        self.api_url = os.getenv('DEEPSEEK_API_URL', 'https://api.deepseek.com')
         self.model = os.getenv('DEEPSEEK_MODEL', 'deepseek-chat')
-        self.session = None
-    
-    async def init_session(self):
-        """初始化异步会话"""
-        if self.session is None:
-            self.session = aiohttp.ClientSession()
-    
-    async def close_session(self):
-        """关闭异步会话"""
-        if self.session:
-            await self.session.close()
-            self.session = None
-    
-    async def generate_response(self, messages: List[Dict[str, str]], 
-                               temperature: float = 0.7, 
-                               max_tokens: int = 1000) -> Dict[str, Any]:
-        """调用DeepSeek API生成响应"""
-        await self.init_session()
         
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
-        }
-        
-        payload = {
-            "model": self.model,
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens
-        }
-        
-        try:
-            async with self.session.post(
-                f"{self.api_base}/chat/completions",
-                headers=headers,
-                json=payload
-            ) as response:
-                if response.status == 200:
-                    return await response.json()
-                else:
-                    error_text = await response.text()
-                    logging.error(f"DeepSeek API错误: {error_text}")
-                    return {"error": f"API错误: {response.status}", "details": error_text}
-        except Exception as e:
-            logging.error(f"调用DeepSeek API时发生错误: {str(e)}")
-            return {"error": f"请求错误: {str(e)}"}
-    
-    def sync_generate_response(self, messages: List[Dict[str, str]], 
-                              temperature: float = 0.7, 
-                              max_tokens: int = 500):  # 减少最大令牌数
-        """同步调用DeepSeek API (用于非异步环境)"""
-        # 检查API密钥
         if not self.api_key:
-            return {"error": "API密钥未配置", "details": "请在设置页面配置DeepSeek API密钥"}
-        
-        headers = {
+            raise ValueError("DeepSeek API密钥未配置")
+    
+    def _get_headers(self):
+        """确保API密钥格式正确"""
+        # 检查是否已经包含Bearer前缀
+        if self.api_key.startswith('Bearer '):
+            auth_header = self.api_key
+        else:
+            auth_header = f"Bearer {self.api_key}"
+            
+        return {
+            "Authorization": auth_header,
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.api_key}"
+            "Accept": "application/json"
         }
-        
-        payload = {
+    
+    async def generate_response(self, messages, **kwargs):
+        async with aiohttp.ClientSession() as session:
+            headers = self._get_headers()
+            data = {
+                "model": self.model,
+                "messages": messages,
+                **kwargs
+            }
+            
+            try:
+                async with session.post(
+                    f"{self.api_url}/v1/chat/completions",
+                    headers=headers,
+                    json=data
+                ) as response:
+                    if response.status == 200:
+                        return await response.json()
+                    else:
+                        error_text = await response.text()
+                        return {"error": f"API请求失败({response.status}): {error_text}"}
+            except Exception as e:
+                return {"error": str(e)}
+    
+    def sync_generate_response(self, messages, **kwargs):
+        """同步版本的生成响应方法"""
+        headers = self._get_headers()
+        data = {
             "model": self.model,
             "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens
+            **kwargs
         }
         
         try:
-            # 添加详细日志
-            logging.info(f"正在调用DeepSeek API，模型: {self.model}")
-            logging.info(f"API基础URL: {self.api_base}")
-            
             response = requests.post(
-                f"{self.api_base}/chat/completions",
+                f"{self.api_url}/v1/chat/completions",
                 headers=headers,
-                json=payload,
+                json=data,
                 timeout=30
             )
             
-            # 记录响应状态和内容
-            logging.info(f"API响应状态码: {response.status_code}")
-            if response.status_code != 200:
-                logging.error(f"API响应内容: {response.text}")
-            
             if response.status_code == 200:
                 return response.json()
-            elif response.status_code == 401:
-                logging.error(f"DeepSeek API认证错误: {response.text}")
-                return {"error": "API认证失败(401)", "details": "请检查API密钥是否正确"}
-            elif response.status_code == 402:
-                logging.error(f"DeepSeek API付款错误: {response.text}")
-                return {"error": "API付款问题(402)", "details": "账户余额不足或付款问题，请检查您的DeepSeek账户状态"}
-            elif response.status_code == 403:
-                logging.error(f"DeepSeek API权限错误: {response.text}")
-                return {"error": "API权限不足(403)", "details": "您的账户可能没有访问此API的权限"}
-            elif response.status_code == 429:
-                logging.error(f"DeepSeek API请求过多: {response.text}")
-                return {"error": "请求频率限制(429)", "details": "请求过于频繁，请稍后再试"}
             else:
-                logging.error(f"DeepSeek API错误: {response.status_code} - {response.text}")
-                return {"error": f"API错误: {response.status_code}", "details": response.text}
-        except requests.exceptions.Timeout:
-            logging.error("DeepSeek API请求超时")
-            return {"error": "请求超时", "details": "API服务器响应超时，请稍后再试"}
-        except requests.exceptions.ConnectionError:
-            logging.error("DeepSeek API连接错误")
-            return {"error": "连接错误", "details": "无法连接到API服务器，请检查网络连接"}
+                return {"error": f"API请求失败({response.status_code}): {response.text}"}
         except Exception as e:
-            logging.error(f"调用DeepSeek API时发生错误: {str(e)}")
-            return {"error": f"请求错误", "details": str(e)}
-        
-        # 如果是付费模型，可以尝试使用免费模型
-        if self.model in ["deepseek-chat", "deepseek-coder"]:
-            try_free_model = False
-            if "error" in response and response.get("error", "").startswith("API错误: 402"):
-                logging.info("尝试使用免费模型...")
-                payload["model"] = "deepseek-chat-light"  # 假设这是一个免费模型
-                try_free_model = True
-                
-                response = requests.post(
-                    f"{self.api_base}/chat/completions",
-                    headers=headers,
-                    json=payload,
-                    timeout=30
+            return {"error": str(e)}
+    
+    def sync_generate_response_with_retry(self, messages, temperature=0.7, max_tokens=500, max_retries=3):
+        """带重试机制的同步响应生成"""
+        for retry in range(max_retries):
+            try:
+                response = self.sync_generate_response(
+                    messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens
                 )
                 
-                if response.status_code == 200:
-                    logging.info("使用免费模型成功")
-                    return response.json()
-        return response  # 返回最后一次尝试的结果
-    
-    def analyze_learning_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """分析学习数据并提供见解"""
-        messages = [
-            {"role": "system", "content": "你是一个专业的教育数据分析专家，擅长分析学习空间数据并提供有价值的见解。"},
-            {"role": "user", "content": f"请分析以下学习空间数据，并提供关键见解和改进建议：\n{json.dumps(data, ensure_ascii=False)}"}
-        ]
-        
-        response = self.sync_generate_response(messages)
-        if "error" in response:
-            return {"analysis": "分析过程中出现错误，请稍后再试。", "error": response["error"]}
-        
-        try:
-            content = response["choices"][0]["message"]["content"]
-            return {"analysis": content}
-        except (KeyError, IndexError) as e:
-            logging.error(f"解析DeepSeek响应时出错: {str(e)}")
-            return {"analysis": "无法解析AI响应，请稍后再试。", "error": str(e)}
-
-    # 在DeepSeekAI类中添加重试机制
-    def sync_generate_response_with_retry(self, messages: List[Dict[str, str]], 
-                                         temperature: float = 0.7, 
-                                         max_tokens: int = 1000,
-                                         max_retries: int = 3) -> Dict[str, Any]:
-        """带重试机制的API调用"""
-        retries = 0
-        while retries < max_retries:
-            response = self.sync_generate_response(messages, temperature, max_tokens)
-            if "error" not in response or response.get("error", "").startswith("API错误: 5"):
-                # 成功或非服务器错误，直接返回
+                if "error" not in response:
+                    return response
+                
+                # 如果是服务器错误，等待后重试
+                if "500" in str(response.get("error", "")):
+                    time.sleep((retry + 1) * 2)
+                    continue
+                    
                 return response
-            
-            # 服务器错误，尝试重试
-            retries += 1
-            if retries < max_retries:
-                # 指数退避策略
-                wait_time = 2 ** retries
-                time.sleep(wait_time)
-                logging.info(f"API调用失败，第{retries}次重试...")
+                
+            except Exception as e:
+                if retry == max_retries - 1:
+                    return {"error": str(e)}
+                time.sleep((retry + 1) * 2)
         
-        return response  # 返回最后一次尝试的结果
-
-    # 在DeepSeekAI类中添加使用量跟踪
-    def track_api_usage(self, tokens_used: int = 0):
-        """跟踪API使用量"""
-        if 'api_usage' not in st.session_state:
-            st.session_state.api_usage = {
-                'calls': 0,
-                'tokens': 0,
-                'last_call': None
-            }
-        
-        st.session_state.api_usage['calls'] += 1
-        st.session_state.api_usage['tokens'] += tokens_used
-        st.session_state.api_usage['last_call'] = datetime.now()
+        return {"error": "达到最大重试次数"}
 
 # 添加AI助手界面函数
 
@@ -1924,7 +2111,7 @@ def render_ai_assistant():
             # 调用API获取响应
             with st.spinner("AI思考中..."):
                 deepseek_ai = DeepSeekAI()
-                response = deepseek_ai.sync_generate_response(
+                response = deepseek_ai.generate_response(
                     st.session_state.ai_messages,
                     temperature=0.7
                 )
@@ -2008,7 +2195,7 @@ def render_learning_path_recommendation():
                         {"role": "user", "content": prompt}
                     ]
                     
-                    response = deepseek_ai.sync_generate_response(messages)
+                    response = deepseek_ai.generate_response(messages)
                     
                     if "error" in response:
                         st.error(f"生成学习路径时出现错误: {response.get('error', '未知错误')}")
@@ -2036,37 +2223,43 @@ def render_learning_path_recommendation():
 # 添加学习空间智能推荐功能
 
 def render_space_recommendation():
-    """基于学习需求的空间推荐"""
-    st.subheader("学习空间智能推荐")
+    """渲染学习空间推荐"""
+    st.title("学习空间推荐")
     
-    # 学习需求输入
-    with st.form("learning_needs_form"):
-        learning_activity = st.selectbox(
+    # 创建一个容器来显示结果
+    result_container = st.container()
+    
+    with st.form("space_recommendation_form"):
+        # 学习需求输入
+        activity_type = st.selectbox(
             "学习活动类型",
             ["个人自习", "小组讨论", "实验操作", "创新创作", "展示汇报", "技能训练"]
         )
         
         participant_count = st.number_input("参与人数", 1, 100, 1)
         
-        duration = st.slider("预计时长(小时)", 0.5, 8.0, 2.0, 0.5)
+        duration_hours = st.slider("预计时长(小时)", 0.5, 8.0, 2.0, 0.5)
         
-        required_resources = st.multiselect(
+        selected_resources = st.multiselect(
             "所需资源",
             ["电脑/网络", "投影设备", "白板", "实验器材", "创作工具", "参考资料"]
         )
         
         special_requirements = st.text_area("特殊需求(可选)")
         
-        submit = st.form_submit_button("推荐学习空间")
-        
-        if submit:
-            with st.spinner("AI正在分析最佳学习空间..."):
+        # 定义submit变量
+        submit_button = st.form_submit_button("推荐学习空间")
+    
+    # 表单提交后的处理逻辑
+    if submit_button:
+        with st.spinner("正在生成学习空间推荐..."):
+            try:
                 # 构建学习需求
                 learning_needs = {
-                    "activity_type": learning_activity,
+                    "activity_type": activity_type,
                     "participant_count": participant_count,
-                    "duration": duration,
-                    "required_resources": required_resources,
+                    "duration": duration_hours,
+                    "required_resources": selected_resources,
                     "special_requirements": special_requirements
                 }
                 
@@ -2079,10 +2272,10 @@ def render_space_recommendation():
                 请根据以下学习需求，从可用的学习空间中推荐最适合的空间:
                 
                 学习需求:
-                - 活动类型: {learning_activity}
+                - 活动类型: {activity_type}
                 - 参与人数: {participant_count}人
-                - 预计时长: {duration}小时
-                - 所需资源: {', '.join(required_resources) if required_resources else '无特殊要求'}
+                - 预计时长: {duration_hours}小时
+                - 所需资源: {', '.join(selected_resources) if selected_resources else '无特殊要求'}
                 - 特殊需求: {special_requirements if special_requirements else '无'}
                 
                 可用学习空间:
@@ -2102,21 +2295,71 @@ def render_space_recommendation():
                     {"role": "user", "content": prompt}
                 ]
                 
-                response = deepseek_ai.sync_generate_response(messages)
+                # 使用带重试的API调用
+                response = deepseek_ai.sync_generate_response_with_retry(
+                    messages,
+                    temperature=0.7,
+                    timeout=45,
+                    max_retries=3
+                )
                 
-                if "error" in response:
-                    st.error(f"生成空间推荐时出现错误: {response.get('error', '未知错误')}")
-                else:
-                    try:
-                        recommendation = response["choices"][0]["message"]["content"]
-                        st.markdown("## 学习空间推荐")
-                        st.markdown(recommendation)
+                # 在表单外的容器中显示结果
+                with result_container:
+                    if "error" in response:
+                        st.error(f"生成空间推荐时出现错误: {response.get('error', '未知错误')}")
+                        st.info("正在使用离线备用方案...")
                         
-                        # 添加预约按钮
-                        if st.button("预约推荐空间"):
-                            st.success("预约请求已发送，请等待确认。")
-                    except (KeyError, IndexError):
-                        st.error("处理AI响应时出现错误，请稍后再试。")
+                        # 提供一些预定义的推荐
+                        st.markdown("## 备用学习空间推荐")
+                        
+                        # 基于用户选择的资源和时间生成简单推荐
+                        resources = []
+                        if "电脑/网络" in selected_resources:
+                            resources.append("电脑/网络")
+                        if "投影设备" in selected_resources:
+                            resources.append("投影设备")
+                        if "白板" in selected_resources:
+                            resources.append("白板")
+                        
+                        if "个人自习" in activity_type:
+                            st.markdown("### 推荐空间: 图书馆自习区")
+                            st.markdown(f"- 可用资源: {', '.join(resources)}")
+                            st.markdown(f"- 适合时长: {duration_hours}小时")
+                            st.markdown("- 特点: 安静、专注、适合个人学习")
+                        
+                        elif "小组讨论" in activity_type:
+                            st.markdown("### 推荐空间: 协作学习室")
+                            st.markdown(f"- 可用资源: {', '.join(resources)}")
+                            st.markdown(f"- 适合时长: {duration_hours}小时")
+                            st.markdown("- 特点: 适合小组讨论、配备白板和投影设备")
+                        
+                        elif "实验操作" in activity_type:
+                            st.markdown("### 推荐空间: 实验室")
+                            st.markdown(f"- 可用资源: {', '.join(resources)}")
+                            st.markdown(f"- 适合时长: {duration_hours}小时")
+                            st.markdown("- 特点: 配备实验设备、适合实践操作")
+                        
+                        else:
+                            st.markdown("### 推荐空间: 综合学习区")
+                            st.markdown(f"- 可用资源: {', '.join(resources)}")
+                            st.markdown(f"- 适合时长: {duration_hours}小时")
+                            st.markdown("- 特点: 灵活布局、适合多种学习活动")
+                    else:
+                        try:
+                            recommendation = response["choices"][0]["message"]["content"]
+                            st.markdown("## 学习空间推荐")
+                            st.markdown(recommendation)
+                            
+                            # 这个按钮在表单外部，是合法的
+                            if st.button("预约推荐空间"):
+                                st.success("预约请求已发送，请等待确认。")
+                        except (KeyError, IndexError) as e:
+                            st.error(f"处理AI响应时出现错误: {str(e)}")
+                
+            except Exception as e:
+                with result_container:
+                    st.error(f"生成空间推荐时出现错误: {str(e)}")
+                    st.info("请稍后再试或联系系统管理员获取帮助。")
 
 # 添加学习行为智能分析功能
 
@@ -2371,74 +2614,1376 @@ def render_learning_diagnosis():
 
 # 添加帮助页面
 def render_help_page():
-    """渲染帮助页面"""
+    """渲染帮助中心页面"""
     st.title("帮助中心")
     
-    # 使用手风琴组件组织帮助内容
-    with st.expander("🔍 如何使用AI助手", expanded=True):
-        st.markdown("""
-        ### AI助手使用指南
-        
-        1. **基本对话**：在输入框中输入您的问题，点击"发送"按钮获取AI回复。
-        
-        2. **快速分析**：点击快速分析选项，可以快速获取特定主题的分析结果。
-        
-        3. **清空对话**：点击"清空对话"按钮可以重新开始对话。
-        
-        4. **数据分析**：您可以要求AI助手分析学习数据，提供学习建议。
-        
-        5. **教育咨询**：您可以咨询任何教育相关的问题，AI助手会尽力回答。
-        """)
+    # 创建选项卡
+    tab1, tab2, tab3, tab4 = st.tabs(["📚 使用指南", "❓ 常见问题", "🔧 故障排除", "📞 联系支持"])
     
-    with st.expander("⚙️ API配置说明"):
-        st.markdown("""
-        ### DeepSeek API配置指南
+    with tab1:
+        st.subheader("使用指南")
         
-        1. **获取API密钥**：访问DeepSeek官网获取您的API密钥。
+        # 基础功能指南
+        with st.expander("基础功能介绍", expanded=True):
+            st.markdown("""
+            ### 1. 数据大屏
+            - 实时展示学习数据和统计信息
+            - 支持多维度数据可视化
+            - 提供关键指标监控
+            
+            ### 2. 数据分析
+            - 学习行为分析
+            - 趋势图表展示
+            - 深度数据洞察
+            
+            ### 3. AI助手
+            - 智能问答服务
+            - 个性化学习建议
+            - 学习规划辅助
+            
+            ### 4. 学习空间推荐
+            - 物理空间预约
+            - 虚拟学习平台
+            - 移动学习工具
+            """)
         
-        2. **配置API**：在"设置"页面的"API配置"标签页中输入您的API密钥。
+        # 快速入门指南
+        with st.expander("快速入门"):
+            st.markdown("""
+            ### 第一步：账号设置
+            1. 完善个人信息
+            2. 设置学习目标
+            3. 配置通知选项
+            
+            ### 第二步：功能探索
+            1. 浏览数据大屏
+            2. 尝试AI助手
+            3. 查看学习分析
+            
+            ### 第三步：开始学习
+            1. 选择学习空间
+            2. 制定学习计划
+            3. 记录学习过程
+            """)
         
-        3. **选择模型**：根据您的需求选择合适的DeepSeek模型。
-        
-        4. **测试连接**：配置完成后，点击"测试API连接"确认连接是否成功。
-        
-        5. **故障排除**：如果连接失败，请检查API密钥是否正确，或查看错误详情。
-        """)
+        # 高级功能指南
+        with st.expander("高级功能说明"):
+            st.markdown("""
+            ### 1. 数据导出
+            - 支持多种格式导出
+            - 自定义导出内容
+            - 批量数据处理
+            
+            ### 2. API集成
+            - API接口说明
+            - 调用示例
+            - 安全认证
+            
+            ### 3. 自定义配置
+            - 界面主题设置
+            - 数据展示定制
+            - 通知规则配置
+            """)
     
-    with st.expander("📊 数据分析功能"):
-        st.markdown("""
-        ### 数据分析功能说明
+    with tab2:
+        st.subheader("常见问题解答")
         
-        1. **物理空间分析**：分析物理学习空间的使用情况、满意度和优化建议。
+        # 账号相关
+        with st.expander("账号相关问题"):
+            st.markdown("""
+            **Q: 如何修改密码？**  
+            A: 在设置页面的"账户设置"选项卡中可以修改密码。
+            
+            **Q: 忘记密码怎么办？**  
+            A: 点击登录页面的"忘记密码"，通过邮箱验证重置密码。
+            
+            **Q: 如何更新个人信息？**  
+            A: 在个人中心可以更新您的基本信息和学习偏好。
+            """)
         
-        2. **虚拟空间分析**：分析在线学习平台的使用情况和学习效果。
+        # 功能相关
+        with st.expander("功能相关问题"):
+            st.markdown("""
+            **Q: 数据分析多久更新一次？**  
+            A: 系统每小时自动更新一次数据，也可手动刷新。
+            
+            **Q: 如何使用AI助手？**  
+            A: 在AI助手页面输入您的问题，系统会智能分析并给出回答。
+            
+            **Q: 学习空间如何预约？**  
+            A: 在学习空间推荐页面选择合适的空间和时间段进行预约。
+            """)
         
-        3. **泛在空间分析**：整合分析跨场景的学习数据。
-        
-        4. **趋势分析**：分析学习数据的时间趋势和预测未来趋势。
-        
-        5. **AI增强分析**：使用AI深度分析学习数据，提供更深入的见解。
-        """)
+        # 技术相关
+        with st.expander("技术相关问题"):
+            st.markdown("""
+            **Q: 支持哪些浏览器？**  
+            A: 推荐使用Chrome、Firefox、Edge等现代浏览器。
+            
+            **Q: 数据是否安全？**  
+            A: 系统采用加密传输和存储，确保数据安全。
+            
+            **Q: 如何确保AI助手的准确性？**  
+            A: AI助手基于最新的深度学习模型，持续优化更新。
+            """)
     
-    with st.expander("❓ 常见问题"):
-        st.markdown("""
-        ### 常见问题解答
+    with tab3:
+        st.subheader("故障排除")
         
-        1. **AI助手无法响应**：请检查API配置是否正确，或查看错误详情。
+        # 常见故障
+        with st.expander("常见故障解决"):
+            st.markdown("""
+            ### 1. 页面加载问题
+            - 清除浏览器缓存
+            - 检查网络连接
+            - 尝试刷新页面
+            
+            ### 2. 数据显示异常
+            - 确认数据时间范围
+            - 检查筛选条件
+            - 重置图表设置
+            
+            ### 3. AI助手无响应
+            - 检查API配置
+            - 确认网络状态
+            - 尝试重新提问
+            """)
         
-        2. **数据不显示**：请检查数据源连接，或尝试刷新页面。
+        # 错误代码说明
+        with st.expander("错误代码说明"):
+            st.markdown("""
+            ### 常见错误代码
+            - E001: 网络连接失败
+            - E002: 认证失败
+            - E003: 数据加载错误
+            - E004: API调用超时
+            - E005: 权限不足
+            """)
         
-        3. **系统响应缓慢**：可能是数据量过大或网络问题，请稍后再试。
-        
-        4. **API错误**：请查看错误详情，常见错误包括认证失败(401)和付款问题(402)。
-        
-        5. **功能建议**：如有功能建议，请联系系统管理员。
-        """)
+        # 性能优化
+        with st.expander("性能优化建议"):
+            st.markdown("""
+            ### 提升使用体验
+            1. 使用推荐的浏览器版本
+            2. 定期清理缓存数据
+            3. 避免同时打开多个数据图表
+            4. 合理设置数据查询范围
+            5. 使用合适的网络环境
+            """)
     
-    # 添加联系信息
-    st.markdown("---")
-    st.markdown("### 联系我们")
-    st.markdown("如有其他问题，请联系系统管理员：admin@example.com")
+    with tab4:
+        st.subheader("联系支持")
+        
+        # 联系方式
+        st.markdown("""
+        ### 技术支持
+        - 邮箱：281707197@qq.com
+        - 电话：17748975638
+        - 工作时间：周一至周五 9:00-18:00
+        
+        ### 反馈建议
+        我们重视您的反馈，可以通过以下方式提供建议：
+        """)
+        
+        # 反馈表单
+        with st.form("feedback_form"):
+            feedback_type = st.selectbox(
+                "反馈类型",
+                ["功能建议", "故障报告", "使用咨询", "其他"]
+            )
+            description = st.text_area("详细描述")
+            contact = st.text_input("联系方式（选填）")
+            
+            if st.form_submit_button("提交反馈"):
+                st.success("感谢您的反馈！我们会尽快处理。")
+        
+        # 在线支持
+        st.markdown("""
+        ### 在线支持
+        - [帮助文档](https://example.com/docs)
+        - [视频教程](https://example.com/tutorials)
+        - [开发者社区](https://example.com/community)
+        """)
+
+# 如果render_learning_path函数不存在，而是使用render_learning_path_recommendation
+# 添加一个别名函数
+def render_learning_path():
+    """学习路径规划的别名函数"""
+    render_learning_path_recommendation()
+
+def sidebar():
+    """渲染侧边栏"""
+    with st.sidebar:
+        # 语言选择
+        st.write("Language/语言")
+        language = st.selectbox(
+            "",
+            ["中文", "English"],
+            label_visibility="collapsed",
+            key="language_selector"
+        )
+        st.session_state.language = "zh" if language == "中文" else "en"
+        
+        # 主题风格
+        st.write("主题风格")
+        theme = st.selectbox(
+            "",
+            ["Light", "Dark"],
+            label_visibility="collapsed",
+            key="theme_selector"
+        )
+        apply_theme(theme)
+        
+        # 功能选项
+        st.write("选择操作")
+        options = [
+            ("数据大屏", "dashboard", "📊"),
+            ("数据分析", "analysis", "📈"),
+            ("AI助手", "ai_assistant", "🤖"),
+            ("学习空间推荐", "learning_space", "🎯"),
+            ("学习路径规划", "learning_path", "🗺️"),
+            ("学习行为分析", "learning_behavior", "📋"),
+            ("学习诊断", "learning_diagnosis", "🔍"),
+            ("学习记录", "learning_tracker", "📝"),
+            ("帮助中心", "help", "❓"),
+            ("设置", "settings", "⚙️"),
+            ("注销", "logout", "🚪")
+        ]
+        
+        # 使用容器来改善布局
+        for label, key, icon in options:
+            col1, col2 = st.columns([0.2, 3])
+            with col1:
+                st.write(icon)
+            with col2:
+                if st.button(
+                    label,
+                    key=f"btn_{key}",
+                    use_container_width=True,
+                    type="secondary" if st.session_state.sidebar_option != key else "primary"
+                ):
+                    st.session_state.sidebar_option = key
+                    st.rerun()
+
+def render_sidebar():
+    """渲染侧边栏（旧版本兼容）"""
+    sidebar()
+
+def render_analysis():
+    """渲染数据分析页面"""
+    st.title("数据分析")
+    
+    # 创建选项卡
+    tab1, tab2, tab3 = st.tabs(["📊 基础分析", "📈 趋势分析", "🔍 深度洞察"])
+    
+    with tab1:
+        st.subheader("基础数据分析")
+        
+        # 显示基础统计数据
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric(
+                label="总学习人数",
+                value="1,234",
+                delta="12%",
+                help="过去30天的累计学习人数"
+            )
+            
+        with col2:
+            st.metric(
+                label="平均学习时长",
+                value="45分钟/天",
+                delta="5分钟",
+                help="每人每天平均学习时长"
+            )
+            
+        with col3:
+            st.metric(
+                label="知识点掌握率",
+                value="78%",
+                delta="-2%",
+                help="知识点测试通过率"
+            )
+            
+        # 添加学习时间分布图
+        st.subheader("学习时间分布")
+        
+        # 生成示例数据
+        hours = list(range(24))
+        study_count = np.random.poisson(lam=20, size=24)
+        
+        # 创建柱状图
+        fig = go.Figure(data=[
+            go.Bar(
+                x=hours,
+                y=study_count,
+                marker_color='#1E88E5'
+            )
+        ])
+        
+        fig.update_layout(
+            title="24小时学习人数分布",
+            xaxis_title="小时",
+            yaxis_title="学习人数"
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with tab2:
+        st.subheader("趋势分析")
+        
+        # 生成趋势数据
+        dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
+        trend_data = pd.DataFrame({
+            'date': dates,
+            'daily_users': np.random.normal(100, 10, 30),
+            'avg_duration': np.random.normal(45, 5, 30)
+        })
+        
+        # 创建趋势图
+        fig = go.Figure()
+        
+        fig.add_trace(go.Scatter(
+            x=trend_data['date'],
+            y=trend_data['daily_users'],
+            name='日活跃用户',
+            line=dict(color='#1E88E5')
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=trend_data['date'],
+            y=trend_data['avg_duration'],
+            name='平均时长(分钟)',
+            line=dict(color='#43A047')
+        ))
+        
+        fig.update_layout(
+            title="30天趋势分析",
+            xaxis_title="日期",
+            yaxis_title="数值",
+            hovermode='x unified'
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+    with tab3:
+        st.subheader("深度洞察")
+        
+        # 添加AI分析按钮
+        if st.button("生成AI分析报告"):
+            with st.spinner("AI正在分析数据..."):
+                try:
+                    # 调用AI接口生成分析
+                    analysis = """
+                    ### 数据分析报告
+                    
+                    #### 主要发现
+                    1. 用户活跃度稳定增长，环比增长12%
+                    2. 平均学习时长略有提升，达到45分钟/天
+                    3. 知识点掌握率出现小幅下降
+                    
+                    #### 改进建议
+                    1. 优化学习内容难度梯度
+                    2. 增加互动学习环节
+                    3. 加强个性化学习指导
+                    """
+                    
+                    st.markdown(analysis)
+                    
+                except Exception as e:
+                    st.error(f"生成分析报告失败: {str(e)}")
+        
+        # 添加数据导出功能
+        if st.button("导出分析数据"):
+            st.success("数据已导出！")
+
+def render_api_settings():
+    """渲染API配置页面"""
+    st.title("DeepSeek API配置")
+    
+    # 从session_state或环境变量获取当前配置
+    current_api_key = st.session_state.get('deepseek_api_key', '')
+    current_api_url = st.session_state.get('deepseek_api_url', 'https://api.deepseek.com')
+    current_model = st.session_state.get('deepseek_model', 'deepseek-chat')
+    
+    # 显示当前API状态
+    if current_api_key:
+        st.success("API状态: 已配置")
+        # 显示部分隐藏的API密钥
+        masked_key = current_api_key[:4] + "*" * (len(current_api_key) - 8) + current_api_key[-4:]
+        st.info(f"当前API密钥: {masked_key}")
+    else:
+        st.warning("API状态: 未配置")
+    
+    # API配置表单
+    with st.form("deepseek_api_settings_form", clear_on_submit=False):
+        # API密钥输入
+        api_key = st.text_input(
+            "DeepSeek API密钥",
+            type="password",
+            value=current_api_key,
+            help="请输入您的DeepSeek API密钥",
+            key="deepseek_api_key_input"
+        )
+        
+        # API基础URL
+        api_url = st.text_input(
+            "API基础URL",
+            value=current_api_url,
+            help="DeepSeek API的基础URL",
+            key="deepseek_api_url_input"
+        )
+        
+        # 模型选择
+        model = st.selectbox(
+            "DeepSeek模型",
+            ["deepseek-chat", "deepseek-coder", "deepseek-ai"],
+            index=["deepseek-chat", "deepseek-coder", "deepseek-ai"].index(current_model),
+            help="选择要使用的DeepSeek模型",
+            key="deepseek_model_select"
+        )
+        
+        cols = st.columns([1, 1])
+        with cols[0]:
+            submit = st.form_submit_button("保存API设置")
+        with cols[1]:
+            test_button = st.form_submit_button("测试API连接")
+        
+        if submit:
+            # 保存前检查API密钥格式
+            api_key = api_key.strip()  # 移除空格
+            if not api_key.startswith('Bearer '):
+                api_key = f"Bearer {api_key}"
+            
+            # 保存API设置
+            st.session_state.deepseek_api_key = api_key
+            st.session_state.deepseek_api_url = api_url.rstrip('/')  # 移除末尾的斜杠
+            st.session_state.deepseek_model = model
+            
+            # 更新环境变量
+            os.environ['DEEPSEEK_API_KEY'] = api_key
+            os.environ['DEEPSEEK_API_URL'] = api_url.rstrip('/')
+            os.environ['DEEPSEEK_MODEL'] = model
+            
+            st.success("API设置已保存！")
+            st.write("当前配置:")
+            st.write(f"- API URL: {api_url}")
+            st.write(f"- 模型: {model}")
+            st.write(f"- API密钥: {api_key[:10]}...")
+            
+            time.sleep(1)
+            st.rerun()
+        
+        if test_button:
+            try:
+                # 构造测试请求
+                headers = {
+                    "Authorization": f"Bearer {api_key.strip()}", # 确保移除可能的空格
+                    "Content-Type": "application/json",
+                    "Accept": "application/json"
+                }
+                
+                # 构造测试请求
+                test_data = {
+                    "model": "deepseek-chat",  # 使用具体的模型名称
+                    "messages": [
+                        {"role": "user", "content": "Hello"}
+                    ],
+                    "max_tokens": 50,
+                    "temperature": 0.7
+                }
+                
+                with st.spinner("正在测试API连接..."):
+                    # 打印请求信息以便调试
+                    st.write("请求URL:", f"{api_url}/v1/chat/completions")
+                    st.write("请求头:", {k: v[:10] + '...' if k == 'Authorization' else v for k, v in headers.items()})
+                    
+                    response = requests.post(
+                        f"{api_url}/v1/chat/completions",
+                        headers=headers,
+                        json=test_data,
+                        timeout=10
+                    )
+                    
+                    # 打印完整的响应信息
+                    st.write("响应状态码:", response.status_code)
+                    st.write("响应内容:", response.text)
+                    
+                    if response.status_code == 200:
+                        st.success("API连接测试成功！")
+                    else:
+                        st.error(f"API测试失败: {response.status_code}")
+                        st.error(f"错误信息: {response.text}")
+                        
+            except requests.exceptions.RequestException as e:
+                st.error(f"API连接测试失败: {str(e)}")
+                st.info("请检查API密钥和网络连接")
+
+def render_usage_statistics():
+    """渲染使用统计页面"""
+    st.title("使用统计")
+    
+    # 从session_state获取API使用统计
+    api_usage = st.session_state.get('api_usage', {
+        'calls': 0,
+        'tokens': 0,
+        'last_call': None
+    })
+    
+    # 显示统计数据
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.metric(
+            label="API调用次数",
+            value=api_usage['calls'],
+            delta=None,
+            help="累计API调用总次数"
+        )
+    
+    with col2:
+        st.metric(
+            label="Token使用量",
+            value=api_usage['tokens'],
+            delta=None,
+            help="累计Token使用总量"
+        )
+    
+    with col3:
+        last_call = api_usage['last_call']
+        last_call_str = last_call.strftime("%Y-%m-%d %H:%M:%S") if last_call else "从未使用"
+        st.metric(
+            label="最后调用时间",
+            value=last_call_str,
+            delta=None,
+            help="最近一次API调用时间"
+        )
+    
+    # 添加使用趋势图
+    st.subheader("使用趋势")
+    
+    # 生成示例数据（实际应用中应该使用真实数据）
+    dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
+    data = pd.DataFrame({
+        'date': dates,
+        'api_calls': np.random.randint(10, 100, size=30),
+        'tokens': np.random.randint(1000, 5000, size=30)
+    })
+    
+    # 创建API调用趋势图
+    fig1 = go.Figure()
+    fig1.add_trace(go.Scatter(
+        x=data['date'],
+        y=data['api_calls'],
+        mode='lines+markers',
+        name='API调用次数',
+        line=dict(color='#1E88E5', width=2),
+        marker=dict(size=6)
+    ))
+    
+    fig1.update_layout(
+        title="每日API调用次数",
+        xaxis_title="日期",
+        yaxis_title="调用次数",
+        hovermode='x unified'
+    )
+    
+    st.plotly_chart(fig1, use_container_width=True)
+    
+    # 创建Token使用趋势图
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(
+        x=data['date'],
+        y=data['tokens'],
+        mode='lines+markers',
+        name='Token使用量',
+        line=dict(color='#43A047', width=2),
+        marker=dict(size=6)
+    ))
+    
+    fig2.update_layout(
+        title="每日Token使用量",
+        xaxis_title="日期",
+        yaxis_title="Token数量",
+        hovermode='x unified'
+    )
+    
+    st.plotly_chart(fig2, use_container_width=True)
+    
+    # 添加使用记录表格
+    st.subheader("最近使用记录")
+    
+    # 生成示例使用记录（实际应用中应该使用真实数据）
+    records = pd.DataFrame({
+        '时间': pd.date_range(end=datetime.now(), periods=10, freq='H'),
+        '操作类型': ['对话生成', '代码分析', '文本总结'] * 3 + ['对话生成'],
+        'Token数': np.random.randint(100, 500, size=10),
+        '状态': ['成功'] * 8 + ['失败'] * 2
+    })
+    
+    # 为状态添加颜色标记
+    def color_status(val):
+        color = 'green' if val == '成功' else 'red'
+        return f'color: {color}'
+    
+    # 显示带样式的表格
+    st.dataframe(
+        records.style.applymap(color_status, subset=['状态']),
+        use_container_width=True
+    )
+    
+    # 添加导出选项
+    if st.button("导出统计数据"):
+        # 这里应该实现导出逻辑
+        st.success("统计数据已导出！")
+        
+    # 添加重置选项
+    if st.button("重置统计数据"):
+        if st.session_state.get('api_usage'):
+            st.session_state.api_usage = {
+                'calls': 0,
+                'tokens': 0,
+                'last_call': None
+            }
+            st.success("统计数据已重置！")
+            st.rerun()
+
+def render_learning_tracker():
+    """渲染学习记录与激励机制模块"""
+    st.title("学习记录与激励系统")
+    
+    # 初始化session state
+    if 'learning_records' not in st.session_state:
+        st.session_state.learning_records = {
+            'daily_goals': {},  # 每日目标
+            'completed_tasks': [],  # 已完成任务
+            'points': 100,  # 初始积分
+            'streak_days': 0,  # 连续学习天数
+            'penalties': [],  # 惩罚记录
+            'rewards': []  # 奖励记录
+        }
+    
+    # 侧边栏：显示当前状态
+    with st.sidebar:
+        st.subheader("📊 学习状态")
+        st.metric("当前积分", st.session_state.learning_records['points'])
+        st.metric("连续学习天数", st.session_state.learning_records['streak_days'])
+        
+        # 显示警告区
+        if st.session_state.learning_records['points'] < 60:
+            st.warning("⚠️ 积分偏低，请注意保持学习频率！")
+        elif st.session_state.learning_records['points'] > 150:
+            st.success("🌟 表现优秀，继续保持！")
+    
+    # 主要内容区
+    tab1, tab2, tab3 = st.tabs(["📝 每日任务", "🎯 目标追踪", "📈 学习分析"])
+    
+    with tab1:
+        st.subheader("今日学习任务")
+        
+        # 添加新任务
+        with st.form("add_task_form"):
+            task = st.text_input("添加新任务")
+            estimated_time = st.slider("预计用时(分钟)", 15, 180, 60, 15)
+            priority = st.select_slider("优先级", options=["低", "中", "高"])
+            
+            if st.form_submit_button("添加任务"):
+                new_task = {
+                    'task': task,
+                    'estimated_time': estimated_time,
+                    'priority': priority,
+                    'status': 'pending',
+                    'created_at': datetime.now()
+                }
+                st.session_state.learning_records['daily_goals'][task] = new_task
+                st.success("任务已添加！")
+        
+        # 显示任务列表
+        for task, details in st.session_state.learning_records['daily_goals'].items():
+            col1, col2, col3 = st.columns([3, 1, 1])
+            with col1:
+                st.write(f"📌 {task}")
+                st.caption(f"预计用时: {details['estimated_time']}分钟 | 优先级: {details['priority']}")
+            
+            with col2:
+                if details['status'] == 'pending':
+                    if st.button("完成", key=f"complete_{task}"):
+                        details['status'] = 'completed'
+                        details['completed_at'] = datetime.now()
+                        st.session_state.learning_records['points'] += 10
+                        st.session_state.learning_records['completed_tasks'].append(details)
+                        st.success("任务完成！获得10积分")
+                        st.rerun()
+            
+            with col3:
+                if details['status'] == 'pending':
+                    if st.button("放弃", key=f"abandon_{task}"):
+                        details['status'] = 'abandoned'
+                        st.session_state.learning_records['points'] -= 5
+                        penalty = {
+                            'task': task,
+                            'points': -5,
+                            'reason': '主动放弃任务',
+                            'time': datetime.now()
+                        }
+                        st.session_state.learning_records['penalties'].append(penalty)
+                        st.warning("任务已放弃，扣除5积分")
+                        st.rerun()
+    
+    with tab2:
+        st.subheader("学习目标追踪")
+        
+        # 显示周/月目标完成情况
+        weekly_completion = len([t for t in st.session_state.learning_records['completed_tasks'] 
+                               if t['completed_at'] > datetime.now() - timedelta(days=7)])
+        monthly_completion = len([t for t in st.session_state.learning_records['completed_tasks']
+                                if t['completed_at'] > datetime.now() - timedelta(days=30)])
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("本周完成任务", weekly_completion)
+        with col2:
+            st.metric("本月完成任务", monthly_completion)
+        
+        # 显示惩罚记录
+        st.subheader("惩罚记录")
+        if st.session_state.learning_records['penalties']:
+            for penalty in st.session_state.learning_records['penalties']:
+                st.error(
+                    f"时间: {penalty['time'].strftime('%Y-%m-%d %H:%M')}\n"
+                    f"任务: {penalty['task']}\n"
+                    f"原因: {penalty['reason']}\n"
+                    f"扣除积分: {penalty['points']}"
+                )
+    
+    with tab3:
+        st.subheader("学习数据分析")
+        
+        # 生成分析数据
+        dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
+        completion_data = pd.DataFrame({
+            'date': dates,
+            'completed_tasks': np.random.randint(0, 8, size=30),
+            'study_hours': np.random.uniform(1, 6, size=30)
+        })
+        
+        # 绘制完成任务趋势
+        fig1 = go.Figure()
+        fig1.add_trace(go.Scatter(
+            x=completion_data['date'],
+            y=completion_data['completed_tasks'],
+            mode='lines+markers',
+            name='完成任务数',
+            line=dict(color='#1E88E5', width=2)
+        ))
+        
+        fig1.update_layout(
+            title="每日完成任务数趋势",
+            xaxis_title="日期",
+            yaxis_title="任务数量"
+        )
+        
+        st.plotly_chart(fig1, use_container_width=True)
+        
+        # 添加学习建议
+        st.subheader("AI学习建议")
+        if st.button("生成学习建议"):
+            with st.spinner("AI分析中..."):
+                try:
+                    deepseek_ai = DeepSeekAI()
+                    prompt = f"""
+                    基于以下学习数据生成个性化学习建议：
+                    1. 当前积分：{st.session_state.learning_records['points']}
+                    2. 连续学习天数：{st.session_state.learning_records['streak_days']}
+                    3. 本周完成任务数：{weekly_completion}
+                    4. 本月完成任务数：{monthly_completion}
+                    5. 是否有惩罚记录：{'是' if st.session_state.learning_records['penalties'] else '否'}
+                    
+                    请提供：
+                    1. 学习表现分析
+                    2. 需要改进的方面
+                    3. 具体的改进建议
+                    4. 鼓励性话语
+                    """
+                    
+                    response = deepseek_ai.sync_generate_response(
+                        [{"role": "user", "content": prompt}],
+                        temperature=0.7
+                    )
+                    
+                    if "error" not in response:
+                        st.write(response["choices"][0]["message"]["content"])
+                    else:
+                        st.error("生成建议失败，请稍后再试")
+                        
+                except Exception as e:
+                    st.error(f"生成建议时出错: {str(e)}")
+
+def render_learning_behavior():
+    """渲染学习行为分析页面"""
+    st.title("学习行为分析")
+    
+    # 初始化学习行为数据
+    if 'learning_behavior' not in st.session_state:
+        st.session_state.learning_behavior = {
+            'study_time': [],  # 学习时长记录
+            'focus_rate': [],  # 专注度记录
+            'completion_rate': [],  # 任务完成率
+            'interaction_count': [],  # 互动次数
+            'dates': []  # 对应日期
+        }
+    
+    # 创建选项卡
+    tab1, tab2, tab3 = st.tabs(["📊 行为概览", "🔍 详细分析", "💡 改进建议"])
+    
+    with tab1:
+        st.subheader("学习行为概览")
+        
+        # 显示关键指标
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.metric(
+                label="平均学习时长",
+                value="2.5小时/天",
+                delta="0.5小时",
+                delta_color="normal"
+            )
+        
+        with col2:
+            st.metric(
+                label="平均专注度",
+                value="85%",
+                delta="5%",
+                delta_color="normal"
+            )
+        
+        with col3:
+            st.metric(
+                label="任务完成率",
+                value="78%",
+                delta="-2%",
+                delta_color="inverse"
+            )
+        
+        with col4:
+            st.metric(
+                label="知识点掌握度",
+                value="82%",
+                delta="3%",
+                delta_color="normal"
+            )
+        
+        # 添加行为趋势图
+        st.subheader("学习行为趋势")
+        
+        # 生成示例数据
+        dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
+        data = pd.DataFrame({
+            'date': dates,
+            'study_time': np.random.normal(2.5, 0.5, 30),  # 学习时长
+            'focus_rate': np.random.normal(85, 5, 30),     # 专注度
+            'completion_rate': np.random.normal(78, 8, 30), # 完成率
+            'interaction': np.random.randint(10, 50, 30)    # 互动次数
+        })
+        
+        # 绘制趋势图
+        fig = go.Figure()
+        
+        # 添加学习时长曲线
+        fig.add_trace(go.Scatter(
+            x=data['date'],
+            y=data['study_time'],
+            name='学习时长(小时)',
+            line=dict(color='#1E88E5', width=2)
+        ))
+        
+        # 添加专注度曲线
+        fig.add_trace(go.Scatter(
+            x=data['date'],
+            y=data['focus_rate'],
+            name='专注度(%)',
+            line=dict(color='#43A047', width=2)
+        ))
+        
+        fig.update_layout(
+            title="学习行为趋势分析",
+            xaxis_title="日期",
+            yaxis_title="数值",
+            hovermode='x unified'
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with tab2:
+        st.subheader("详细行为分析")
+        
+        # 时间分布分析
+        st.write("##### 学习时间分布")
+        time_data = pd.DataFrame({
+            'hour': range(24),
+            'study_count': np.random.poisson(lam=5, size=24)
+        })
+        
+        fig_time = go.Figure(data=[
+            go.Bar(
+                x=time_data['hour'],
+                y=time_data['study_count'],
+                marker_color='#1E88E5'
+            )
+        ])
+        
+        fig_time.update_layout(
+            title="每日学习时间分布",
+            xaxis_title="小时",
+            yaxis_title="学习次数"
+        )
+        
+        st.plotly_chart(fig_time, use_container_width=True)
+        
+        # 学习行为模式分析
+        st.write("##### 学习行为模式")
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # 学习方式分布
+            labels = ['视频学习', '练习题', '阅读材料', '互动讨论']
+            values = [40, 25, 20, 15]
+            
+            fig_pie = go.Figure(data=[go.Pie(labels=labels, values=values)])
+            fig_pie.update_layout(title="学习方式分布")
+            st.plotly_chart(fig_pie, use_container_width=True)
+        
+        with col2:
+            # 知识点掌握情况
+            subjects = ['数学', '物理', '化学', '生物', '英语']
+            scores = [85, 78, 92, 88, 76]
+            
+            fig_radar = go.Figure(data=go.Scatterpolar(
+                r=scores,
+                theta=subjects,
+                fill='toself'
+            ))
+            
+            fig_radar.update_layout(title="知识点掌握情况")
+            st.plotly_chart(fig_radar, use_container_width=True)
+    
+    with tab3:
+        st.subheader("学习改进建议")
+        
+        # 生成AI建议
+        if st.button("生成个性化建议"):
+            with st.spinner("AI分析中..."):
+                try:
+                    deepseek_ai = DeepSeekAI()
+                    prompt = """
+                    基于以下学习行为数据生成个性化学习建议：
+                    1. 平均每日学习时长：2.5小时
+                    2. 平均专注度：85%
+                    3. 任务完成率：78%
+                    4. 主要学习时间段：晚上8点-10点
+                    5. 最常用学习方式：视频学习(40%)
+                    
+                    请从以下几个方面提供建议：
+                    1. 时间管理
+                    2. 学习效率提升
+                    3. 知识巩固方法
+                    4. 学习方式多样化
+                    """
+                    
+                    response = deepseek_ai.sync_generate_response(
+                        [{"role": "user", "content": prompt}],
+                        temperature=0.7
+                    )
+                    
+                    if "error" not in response:
+                        st.write(response["choices"][0]["message"]["content"])
+                    else:
+                        st.error("生成建议失败，请稍后再试")
+                        
+                except Exception as e:
+                    st.error(f"生成建议时出错: {str(e)}")
+        
+        # 添加手动建议
+        st.write("##### 通用改进建议")
+        st.info("""
+        1. 建议增加每日学习时长至3-4小时
+        2. 可以尝试番茄工作法提高专注度
+        3. 建议增加练习题的比重
+        4. 可以尝试早晨学习，提高学习效率
+        5. 建议多参与互动讨论，加深理解
+        """)
+
+def render_learning_space():
+    """渲染学习空间推荐页面"""
+    st.title("学习空间推荐")
+    
+    # 创建选项卡
+    tab1, tab2, tab3 = st.tabs(["🏫 物理空间", "💻 虚拟空间", "📱 泛在空间"])
+    
+    with tab1:
+        st.subheader("物理学习空间推荐")
+        
+        # 筛选条件
+        col1, col2 = st.columns(2)
+        with col1:
+            location = st.selectbox(
+                "选择校区",
+                ["主校区", "新校区", "城市校区"]
+            )
+        with col2:
+            space_type = st.selectbox(
+                "空间类型",
+                ["自习室", "图书馆", "实验室", "研讨室"]
+            )
+        
+        # 时间选择
+        time_slot = st.select_slider(
+            "时间段",
+            options=["8:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"],
+            value=("8:00", "22:00")
+        )
+        
+        # 生成示例数据
+        spaces = pd.DataFrame({
+            'name': ['A101自习室', 'B203研讨室', '图书馆3楼', '创新实验室'],
+            'type': ['自习室', '研讨室', '图书馆', '实验室'],
+            'capacity': [100, 20, 200, 50],
+            'current': [65, 5, 120, 30],
+            'rating': [4.5, 4.8, 4.6, 4.7]
+        })
+        
+        # 显示推荐空间
+        st.subheader("推荐空间")
+        for _, space in spaces.iterrows():
+            with st.container():
+                col1, col2, col3 = st.columns([3, 2, 1])
+                with col1:
+                    st.write(f"**{space['name']}**")
+                    st.write(f"类型: {space['type']}")
+                with col2:
+                    st.write(f"容量: {space['current']}/{space['capacity']}")
+                with col3:
+                    st.write(f"评分: {space['rating']}⭐")
+                st.progress(space['current']/space['capacity'])
+                st.write("---")
+    
+    with tab2:
+        st.subheader("虚拟学习空间推荐")
+        
+        # 学习目标选择
+        learning_goal = st.selectbox(
+            "学习目标",
+            ["课程学习", "技能提升", "考试准备", "研究探索"]
+        )
+        
+        # 学习方式
+        learning_style = st.multiselect(
+            "学习方式",
+            ["视频课程", "在线练习", "直播互动", "资源下载"],
+            ["视频课程", "在线练习"]
+        )
+        
+        # 生成虚拟空间推荐
+        virtual_spaces = [
+            {
+                "name": "智慧课堂",
+                "description": "实时互动的在线课堂平台",
+                "features": ["直播教学", "实时答疑", "课堂互动"],
+                "rating": 4.8
+            },
+            {
+                "name": "知识库",
+                "description": "海量学习资源库",
+                "features": ["视频课程", "电子书籍", "试题库"],
+                "rating": 4.6
+            },
+            {
+                "name": "实践平台",
+                "description": "在线实验和练习平台",
+                "features": ["在线实验", "自动评分", "即时反馈"],
+                "rating": 4.7
+            }
+        ]
+        
+        # 显示虚拟空间
+        for space in virtual_spaces:
+            with st.expander(f"{space['name']} - ⭐{space['rating']}"):
+                st.write(space['description'])
+                st.write("**主要功能：**")
+                for feature in space['features']:
+                    st.write(f"- {feature}")
+    
+    with tab3:
+        st.subheader("泛在学习空间推荐")
+        
+        # 场景选择
+        scenario = st.radio(
+            "学习场景",
+            ["通勤学习", "碎片时间", "户外学习", "团队协作"]
+        )
+        
+        # 设备选择
+        device = st.multiselect(
+            "可用设备",
+            ["手机", "平板", "笔记本", "智能手表"],
+            ["手机"]
+        )
+        
+        # 推荐学习应用
+        st.subheader("推荐应用")
+        apps = [
+            {
+                "name": "移动课堂",
+                "type": "学习应用",
+                "size": "45MB",
+                "rating": 4.5,
+                "features": ["离线下载", "语音学习", "进度同步"]
+            },
+            {
+                "name": "知识笔记",
+                "type": "笔记工具",
+                "size": "32MB",
+                "rating": 4.7,
+                "features": ["快速记录", "云端同步", "知识图谱"]
+            },
+            {
+                "name": "学习助手",
+                "type": "工具类",
+                "size": "28MB",
+                "rating": 4.6,
+                "features": ["时间管理", "学习计划", "提醒服务"]
+            }
+        ]
+        
+        for app in apps:
+            col1, col2, col3 = st.columns([3, 2, 1])
+            with col1:
+                st.write(f"**{app['name']}**")
+                st.write(f"类型: {app['type']}")
+            with col2:
+                st.write(f"大小: {app['size']}")
+            with col3:
+                st.write(f"评分: {app['rating']}⭐")
+                st.button("下载", key=f"download_{app['name']}")
+            st.write("主要功能：")
+            for feature in app['features']:
+                st.write(f"- {feature}")
+            st.write("---")
+        
+        # AI智能推荐
+        if st.button("获取个性化推荐"):
+            with st.spinner("AI分析中..."):
+                try:
+                    deepseek_ai = DeepSeekAI()
+                    prompt = f"""
+                    基于以下学习场景生成个性化学习空间推荐：
+                    1. 场景：{scenario}
+                    2. 设备：{', '.join(device)}
+                    3. 学习特点：移动性、便捷性、随时性
+                    
+                    请推荐：
+                    1. 适合的学习方式
+                    2. 推荐的学习工具
+                    3. 学习建议
+                    """
+                    
+                    response = deepseek_ai.sync_generate_response(
+                        [{"role": "user", "content": prompt}],
+                        temperature=0.7
+                    )
+                    
+                    if "error" not in response:
+                        st.write(response["choices"][0]["message"]["content"])
+                    else:
+                        st.error("生成推荐失败，请稍后再试")
+                        
+                except Exception as e:
+                    st.error(f"生成推荐时出错: {str(e)}")
+
+def render_settings():
+    """渲染设置页面"""
+    st.title("系统设置")
+    
+    # 创建设置选项卡
+    tab1, tab2, tab3 = st.tabs(["👤 账户设置", "🔑 API配置", "📊 使用统计"])
+    
+    with tab1:
+        st.subheader("账户设置")
+        
+        # 个人信息设置
+        with st.expander("个人信息", expanded=True):
+            # 基本信息
+            col1, col2 = st.columns(2)
+            with col1:
+                username = st.text_input("用户名", value=st.session_state.get("username", ""))
+                email = st.text_input("邮箱", value=st.session_state.get("email", ""))
+            with col2:
+                role = st.selectbox("角色", ["学生", "教师", "管理员"])
+                department = st.text_input("所属院系")
+        
+            # 修改密码
+            st.subheader("修改密码")
+            old_password = st.text_input("当前密码", type="password")
+            new_password = st.text_input("新密码", type="password")
+            confirm_password = st.text_input("确认新密码", type="password")
+            
+            if st.button("更新密码"):
+                if new_password != confirm_password:
+                    st.error("新密码与确认密码不匹配！")
+                elif not old_password:
+                    st.error("请输入当前密码！")
+                else:
+                    # 这里应该添加实际的密码更新逻辑
+                    st.success("密码更新成功！")
+        
+        # 通知设置
+        with st.expander("通知设置"):
+            st.checkbox("接收系统通知", value=True)
+            st.checkbox("接收学习提醒", value=True)
+            st.checkbox("接收活动通知", value=True)
+            st.checkbox("接收周报", value=True)
+            
+            # 通知方式
+            st.multiselect(
+                "通知方式",
+                ["邮件", "短信", "站内信"],
+                ["邮件", "站内信"]
+            )
+    
+    with tab2:
+        st.subheader("API配置")
+        
+        # DeepSeek API设置
+        with st.expander("DeepSeek API配置", expanded=True):
+            api_key = st.text_input(
+                "API密钥",
+                type="password",
+                value=st.session_state.get("api_key", ""),
+                help="请输入您的DeepSeek API密钥"
+            )
+            
+            model = st.selectbox(
+                "选择模型",
+                ["DeepSeek-7B", "DeepSeek-67B", "DeepSeek-Chat"],
+                help="选择要使用的AI模型"
+            )
+            
+            temperature = st.slider(
+                "温度",
+                min_value=0.0,
+                max_value=1.0,
+                value=0.7,
+                help="控制AI回答的创造性程度"
+            )
+            
+            if st.button("测试API连接"):
+                if not api_key:
+                    st.error("请输入API密钥！")
+                else:
+                    with st.spinner("正在测试连接..."):
+                        try:
+                            # 这里应该添加实际的API测试逻辑
+                            st.success("API连接测试成功！")
+                        except Exception as e:
+                            st.error(f"API连接测试失败：{str(e)}")
+        
+        # 其他API设置
+        with st.expander("其他API设置"):
+            st.text_input("数据分析API地址")
+            st.text_input("学习空间API地址")
+            st.number_input("API请求超时时间（秒）", value=30)
+    
+    with tab3:
+        st.subheader("使用统计")
+        
+        # 生成示例使用数据
+        dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
+        usage_data = pd.DataFrame({
+            'date': dates,
+            'api_calls': np.random.randint(100, 1000, 30),
+            'data_queries': np.random.randint(50, 500, 30)
+        })
+        
+        # 显示使用统计图表
+        fig = go.Figure()
+        
+        fig.add_trace(go.Scatter(
+            x=usage_data['date'],
+            y=usage_data['api_calls'],
+            name='API调用次数',
+            line=dict(color='#1E88E5')
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=usage_data['date'],
+            y=usage_data['data_queries'],
+            name='数据查询次数',
+            line=dict(color='#43A047')
+        ))
+        
+        fig.update_layout(
+            title="30天使用统计",
+            xaxis_title="日期",
+            yaxis_title="次数",
+            hovermode='x unified'
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # 显示使用限制
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric(
+                label="API调用限额",
+                value="10,000次/月",
+                delta="已用8,234次",
+                delta_color="normal"
+            )
+        with col2:
+            st.metric(
+                label="数据存储限额",
+                value="100GB",
+                delta="已用65GB",
+                delta_color="normal"
+            )
+        
+        # 导出使用报告
+        if st.button("导出使用报告"):
+            st.success("报告已导出！")
+
+def handle_logout():
+    """处理用户注销"""
+    # 清除所有session状态
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    
+    # 显示注销成功消息
+    st.success("您已成功注销！")
+    
+    # 重定向到登录页面
+    st.session_state.page = "login"
+    st.rerun()
+
+def render_logout_confirm():
+    """渲染注销确认页面"""
+    st.title("注销确认")
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.write("### 确定要注销吗？")
+        st.write("注销后需要重新登录才能继续使用系统。")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("确认注销", type="primary"):
+                handle_logout()
+        with col2:
+            if st.button("取消", type="secondary"):
+                st.session_state.sidebar_option = "dashboard"
+                st.rerun()
 
 if __name__ == "__main__":
     main() 
