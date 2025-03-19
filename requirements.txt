@@ -1,14 +1,15 @@
 # 核心依赖
-streamlit>=1.28.0
-pandas>=2.0.0
-numpy>=1.24.0
+streamlit>=1.22.0
+pandas>=1.5.3
+numpy>=1.24.3
 
 # 数据可视化
-plotly>=5.18.0
-matplotlib>=3.7.0
+plotly>=5.14.1
+matplotlib>=3.7.1
+seaborn>=0.12.2
 
 # HTTP请求
-requests>=2.31.0
+requests>=2.29.0
 urllib3>=2.0.0
 
 # API客户端
@@ -22,7 +23,7 @@ reportlab>=4.0.0
 python-dotenv>=1.0.0
 
 # 数据库支持
-sqlalchemy>=2.0.0
+sqlalchemy>=2.0.15
 
 # 工具库
 python-dateutil>=2.8.2
@@ -36,23 +37,14 @@ bcrypt>=4.0.0
 tqdm>=4.66.0
 
 # 数据处理
-python-dateutil>=2.8.2
-pytz>=2023.3
+scikit-learn>=1.2.2
+scipy>=1.10.1
 
-# 工具库
-python-dotenv>=1.0.0
-tqdm>=4.66.1
-
-# 数据库
-sqlalchemy>=2.0.0
-pymysql>=1.1.0
-
-# 安全相关
-python-jose>=3.3.0
-passlib>=1.7.4
+# 图像处理
+pillow>=9.5.0
 
 # 文件处理
-openpyxl>=3.1.0
+openpyxl>=3.1.2
 python-docx>=1.0.0
 xlsxwriter==3.1.9
 aiohttp

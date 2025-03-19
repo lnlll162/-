@@ -927,36 +927,33 @@ class LearningSpaceModel:
     
     # 虚拟学习空间
     VIRTUAL_SPACES = {
-        'data_layer': {  # 数据层
-            'knowledge': {
-                'name': '知识类数据',
-                'content_count': random.randint(1000, 5000),
-                'update_frequency': random.randint(1, 24)
-            },
-            'interaction': {
-                'name': '交互数据',
-                'active_users': random.randint(100, 1000),
-                'avg_duration': random.uniform(0.5, 3.0)
-            },
-            'training': {
-                'name': '训练数据',
-                'completion_rate': random.uniform(60, 95),
-                'satisfaction': random.uniform(4.0, 5.0)
-            }
+        'online_classroom': {
+            'name': '在线课堂',
+            'features': ['直播互动', '录播回放', '在线答疑'],
+            'active_users': random.randint(100, 500),
+            'course_count': random.randint(20, 100),
+            'satisfaction': random.uniform(4.0, 5.0)
         },
-        'application_layer': {  # 应用层
-            'knowledge_present': {
-                'name': '知识呈现',
-                'features': ['宏观微观展示', '跨时空体验', '场景模拟']
-            },
-            'simulation': {
-                'name': '模拟训练',
-                'features': ['技能训练', '安全演练', '远程实验']
-            },
-            'experience': {
-                'name': '环境体验',
-                'features': ['3D场景', '交互体验', '多人协作']
-            }
+        'digital_library': {
+            'name': '数字图书馆',
+            'features': ['电子书籍', '学术论文', '多媒体资源'],
+            'resource_count': random.randint(5000, 10000),
+            'daily_visits': random.randint(500, 2000),
+            'download_count': random.randint(100, 1000)
+        },
+        'virtual_lab': {
+            'name': '虚拟实验室',
+            'features': ['实验模拟', '数据分析', '远程操作'],
+            'experiment_count': random.randint(30, 100),
+            'active_projects': random.randint(10, 50),
+            'completion_rate': random.uniform(0.7, 0.95)
+        },
+        'collaboration_space': {
+            'name': '协作空间',
+            'features': ['团队项目', '在线会议', '文档共享'],
+            'team_count': random.randint(20, 100),
+            'active_projects': random.randint(30, 150),
+            'member_engagement': random.uniform(0.6, 0.9)
         }
     }
     
@@ -984,22 +981,38 @@ class LearningSpaceModel:
                 'interaction_count': random.randint(500, 2000)
             }
         },
+        'service_layer': {  # 服务层
+            'learning_services': {
+                'name': '学习服务',
+                'features': ['个性化推荐', '学习诊断', '智能辅导'],
+                'active_users': random.randint(500, 2000)
+            },
+            'data_services': {
+                'name': '数据服务',
+                'features': ['数据采集', '数据分析', '数据可视化'],
+                'data_points': random.randint(10000, 50000)
+            },
+            'integration_services': {
+                'name': '集成服务',
+                'features': ['系统集成', '数据同步', 'API接口'],
+                'connected_systems': random.randint(5, 20)
+            }
+        },
         'application_layer': {  # 应用层
             'ai_tutor': {
                 'name': 'AI导师服务',
-                'features': ['实时答疑', '学习指导', '个性化推荐']
+                'features': ['实时答疑', '学习指导', '个性化推荐'],
+                'active_sessions': random.randint(100, 500)
             },
             'resource_access': {
-                'name': '资源访问',
-                'features': ['多终端访问', '资源推荐', '学习追踪']
+                'name': '资源访问服务',
+                'features': ['多终端访问', '资源推荐', '学习追踪'],
+                'daily_requests': random.randint(1000, 5000)
             },
             'learning_analytics': {
-                'name': '学习分析',
-                'features': ['效果评估', '行为分析', '预警干预']
-            },
-            'interaction': {
-                'name': '互动交流',
-                'features': ['实时互动', '异步交流', '社区协作']
+                'name': '学习分析服务',
+                'features': ['效果评估', '行为分析', '预警干预'],
+                'analysis_tasks': random.randint(50, 200)
             }
         }
     }
@@ -1989,11 +2002,10 @@ class BaseAI:
 class DeepSeekAI(BaseAI):
     """DeepSeek AI实现"""
     def __init__(self):
-        """初始化DeepSeek API客户端"""
         super().__init__()
         self.name = "DeepSeek"
         
-        load_dotenv()  # 确保加载了.env文件
+        load_dotenv()  # 确保加载环境变量
         self.api_key = os.getenv('DEEPSEEK_API_KEY')
         self.base_url = "https://api.deepseek.com/v1"
         self.model = os.getenv('DEEPSEEK_MODEL', 'deepseek-chat')
@@ -2008,27 +2020,28 @@ class DeepSeekAI(BaseAI):
         }
 
     def generate_response(self, messages, **kwargs):
+        """生成回复"""
         try:
-            response = self.session.post(
-                f"{self.base_url}/chat/completions",
-                headers=self.headers,
-                json={
-                    "model": self.model,
-                    "messages": messages,
-                    "temperature": kwargs.get('temperature', 0.7),
-                    "max_tokens": kwargs.get('max_tokens', 2000),
-                },
-                timeout=60
-            )
+            url = f"{self.base_url}/chat/completions"
+            
+            data = {
+                "model": self.model,
+                "messages": messages,
+                "temperature": kwargs.get('temperature', 0.7),
+                "max_tokens": kwargs.get('max_tokens', 2000)
+            }
+            
+            response = requests.post(url, headers=self.headers, json=data)
             
             if response.status_code == 200:
                 return response.json()
             else:
-                error_msg = f"API调用失败({response.status_code}): {response.text}"
+                error_msg = f"DeepSeek API调用失败({response.status_code}): {response.text}"
                 st.error(error_msg)
                 return {"error": error_msg}
+                
         except Exception as e:
-            error_msg = f"发生错误: {str(e)}"
+            error_msg = f"DeepSeek API错误: {str(e)}"
             st.error(error_msg)
             return {"error": error_msg}
 
@@ -2037,34 +2050,33 @@ class KimiAI(BaseAI):
     def __init__(self):
         super().__init__()
         self.name = "Kimi"
-        self.api_key = "sk-GJfQoPNHu86Ov16Zvnpz86zo7PNPPYJFaCY1oE3XRTtMXqLb"
+        
+        load_dotenv()  # 确保加载环境变量
+        self.api_key = os.getenv('KIMI_API_KEY')
         self.base_url = "https://api.moonshot.cn/v1"
+        
+        if not self.api_key:
+            st.error("Kimi API密钥未配置，请在.env文件中设置KIMI_API_KEY")
+            return
+            
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
-        # 设置重试会话
-        self.session = requests.Session()
-        retry = Retry(
-            total=3,
-            backoff_factor=0.5,
-            status_forcelist=[500, 502, 503, 504]
-        )
-        self.session.mount('https://', HTTPAdapter(max_retries=retry))
 
     def generate_response(self, messages, **kwargs):
+        """生成回复"""
         try:
-            response = self.session.post(
-                f"{self.base_url}/chat/completions",
-                headers=self.headers,
-                json={
-                    "model": "moonshot-v1-8k",
-                    "messages": messages,
-                    "temperature": kwargs.get('temperature', 0.7),
-                    "max_tokens": kwargs.get('max_tokens', 2000),
-                },
-                timeout=60
-            )
+            url = f"{self.base_url}/chat/completions"
+            
+            data = {
+                "model": "moonshot-v1-8k",
+                "messages": messages,
+                "temperature": kwargs.get('temperature', 0.7),
+                "max_tokens": kwargs.get('max_tokens', 2000)
+            }
+            
+            response = requests.post(url, headers=self.headers, json=data)
             
             if response.status_code == 200:
                 return response.json()
@@ -2072,6 +2084,7 @@ class KimiAI(BaseAI):
                 error_msg = f"Kimi API调用失败({response.status_code}): {response.text}"
                 st.error(error_msg)
                 return {"error": error_msg}
+                
         except Exception as e:
             error_msg = f"Kimi API错误: {str(e)}"
             st.error(error_msg)
@@ -2166,6 +2179,17 @@ def render_ai_assistant():
         key="selected_ai_model"
     )
 
+    # 初始化会话状态
+    if 'ai_messages' not in st.session_state:
+        st.session_state.ai_messages = []
+        
+    # 初始化当前选择的AI模型实例
+    try:
+        ai_instance = ai_models[selected_model]()
+    except Exception as e:
+        st.error(f"初始化{selected_model}失败: {str(e)}")
+        return
+
     # 显示对应模型的欢迎语
     welcome_messages = {
         "DeepSeek": "您好！我是基于DeepSeek的智能学习助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？",
@@ -2174,14 +2198,14 @@ def render_ai_assistant():
         "豆包": "您好！我是基于豆包的智能学习助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？"
     }
     
-    st.write(f"AI助手({selected_model}): {welcome_messages[selected_model]}")
-
-    # 初始化会话状态
-    if 'messages' not in st.session_state:
-        st.session_state.messages = []
-        
+    if not st.session_state.ai_messages:
+        st.session_state.ai_messages.append({
+            "role": "assistant",
+            "content": welcome_messages[selected_model]
+        })
+    
     # 显示对话历史
-    for message in st.session_state.messages:
+    for message in st.session_state.ai_messages:
         if message["role"] == "user":
             st.write(f"您: {message['content']}")
         else:
@@ -2199,17 +2223,16 @@ def render_ai_assistant():
 
         if submit and user_input:
             # 添加用户消息到历史记录
-            st.session_state.messages.append({"role": "user", "content": user_input})
+            st.session_state.ai_messages.append({"role": "user", "content": user_input})
             
-            # 创建AI实例并生成回复
-            ai_instance = ai_models[selected_model]()
+            # 调用API获取响应
             with st.spinner("AI思考中..."):
-                response = ai_instance.generate_response(st.session_state.messages)
+                response = ai_instance.generate_response(st.session_state.ai_messages)
                 
                 if "error" not in response:
                     if "choices" in response and len(response["choices"]) > 0:
                         ai_message = response["choices"][0]["message"]["content"]
-                        st.session_state.messages.append({"role": "assistant", "content": ai_message})
+                        st.session_state.ai_messages.append({"role": "assistant", "content": ai_message})
                     else:
                         st.error("AI响应格式错误")
                 else:
@@ -2218,93 +2241,106 @@ def render_ai_assistant():
             st.rerun()
 
         if clear:
-            st.session_state.messages = []
+            st.session_state.ai_messages = []
+            st.session_state.ai_messages.append({
+                "role": "assistant",
+                "content": welcome_messages[selected_model]
+            })
             st.rerun()
 
 # 添加学习路径推荐功能
 
 def render_learning_path_recommendation():
-    """基于DeepSeek的学习路径推荐"""
+    """渲染学习路径推荐页面"""
     st.subheader("个性化学习路径推荐")
     
-    # 学习者信息输入
-    with st.form("learner_info_form"):
+    # 创建表单
+    with st.form(key="learning_path_form"):
+        # 学习者信息
         learner_name = st.text_input("学习者姓名")
         learner_level = st.selectbox("当前水平", ["初级", "中级", "高级"])
         learning_goal = st.text_area("学习目标")
+        
+        # 学习偏好
         preferred_style = st.multiselect(
-            "偏好学习方式", 
-            ["视频学习", "阅读学习", "实践操作", "小组讨论", "自主探究"]
+            "偏好学习方式",
+            ["视频学习", "阅读学习", "实践学习", "社交学习", "游戏化学习"],
+            default=["视频学习"]
         )
+        
+        # 时间安排
         available_time = st.slider("每周可用学习时间(小时)", 1, 40, 10)
         
+        # 提交按钮
         submit = st.form_submit_button("生成学习路径")
-        
-        if submit:
-            if not learner_name or not learning_goal:
-                st.error("请填写学习者姓名和学习目标")
-            else:
-                with st.spinner("AI正在生成个性化学习路径..."):
-                    # 构建学习者画像
-                    learner_profile = {
-                        "name": learner_name,
-                        "level": learner_level,
-                        "goal": learning_goal,
-                        "preferred_style": preferred_style,
-                        "available_time": available_time
-                    }
-                    
-                    # 调用DeepSeek生成学习路径
-                    deepseek_ai = DeepSeekAI()
-                    prompt = f"""
-                    请为以下学习者设计一个个性化的学习路径:
-                    
-                    学习者信息:
-                    - 姓名: {learner_name}
-                    - 当前水平: {learner_level}
-                    - 学习目标: {learning_goal}
-                    - 偏好学习方式: {', '.join(preferred_style)}
-                    - 每周可用时间: {available_time}小时
-                    
-                    请提供:
-                    1. 学习路径概述
-                    2. 阶段性学习目标(3-5个阶段)
-                    3. 每个阶段的具体学习资源和活动
-                    4. 学习进度评估方式
-                    5. 时间安排建议
-                    
-                    请确保学习路径符合学习者的水平、目标和偏好，并能在给定时间内完成。
-                    """
-                    
-                    messages = [
-                        {"role": "system", "content": "你是一个专业的教育规划专家，擅长设计个性化学习路径。"},
-                        {"role": "user", "content": prompt}
-                    ]
-                    
-                    response = deepseek_ai.generate_response(messages)
-                    
-                    if "error" in response:
-                        st.error(f"生成学习路径时出现错误: {response.get('error', '未知错误')}")
-                    else:
-                        try:
-                            path_content = response["choices"][0]["message"]["content"]
-                            st.markdown("## 个性化学习路径")
-                            st.markdown(path_content)
-                            
-                            # 添加保存和分享选项
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.download_button(
-                                    "下载学习路径",
-                                    path_content,
-                                    file_name=f"{learner_name}_学习路径.md",
-                                    mime="text/markdown"
-                                )
-                            with col2:
-                                st.button("分享学习路径", 
-                                         help="此功能将在未来版本中实现")
-                        except (KeyError, IndexError):
-                            st.error("处理AI响应时出现错误，请稍后再试。")
+    
+    # 表单外处理提交逻辑
+    if submit:
+        if not learner_name or not learning_goal:
+            st.error("请填写学习者姓名和学习目标")
+        else:
+            with st.spinner("AI正在生成个性化学习路径..."):
+                # 构建学习者画像
+                learner_profile = {
+                    "name": learner_name,
+                    "level": learner_level,
+                    "goal": learning_goal,
+                    "preferred_style": preferred_style,
+                    "available_time": available_time
+                }
+                
+                # 调用DeepSeek生成学习路径
+                deepseek_ai = DeepSeekAI()
+                prompt = f"""
+                请为以下学习者设计一个个性化的学习路径:
+                
+                学习者信息:
+                - 姓名: {learner_name}
+                - 当前水平: {learner_level}
+                - 学习目标: {learning_goal}
+                - 偏好学习方式: {', '.join(preferred_style)}
+                - 每周可用时间: {available_time}小时
+                
+                请提供:
+                1. 学习路径概述
+                2. 阶段性学习目标(3-5个阶段)
+                3. 每个阶段的具体学习资源和活动
+                4. 学习进度评估方式
+                5. 时间安排建议
+                
+                请确保学习路径符合学习者的水平、目标和偏好，并能在给定时间内完成。
+                """
+                
+                messages = [
+                    {"role": "system", "content": "你是一个专业的教育规划专家，擅长设计个性化学习路径。"},
+                    {"role": "user", "content": prompt}
+                ]
+                
+                response = deepseek_ai.generate_response(messages)
+                
+                if "error" in response:
+                    st.error(f"生成学习路径时出现错误: {response.get('error', '未知错误')}")
+                else:
+                    try:
+                        path_content = response["choices"][0]["message"]["content"]
+                        st.markdown("## 个性化学习路径")
+                        st.markdown(path_content)
+                        
+                        # 保存学习路径数据到会话状态
+                        st.session_state.learning_path_data = path_content
+                        
+                        # 添加下载按钮（在表单外部）
+                        st.download_button(
+                            label="下载学习路径",
+                            data=path_content,
+                            file_name=f"{learner_name}_学习路径.md",
+                            mime="text/markdown"
+                        )
+                        
+                        # 添加分享按钮
+                        st.button("分享学习路径", help="此功能将在未来版本中实现")
+                    except (KeyError, IndexError):
+                        st.error("处理AI响应时出现错误，请稍后再试。")
 
 # 添加学习空间智能推荐功能
 
@@ -2450,253 +2486,465 @@ def render_space_recommendation():
 # 添加学习行为智能分析功能
 
 def render_learning_behavior_analysis():
-    """基于DeepSeek的学习行为智能分析"""
-    st.subheader("学习行为智能分析")
+    """渲染学习行为分析页面"""
+    st.subheader("学习行为分析")
     
-    # 分析选项
-    analysis_period = st.selectbox(
-        "分析周期",
-        ["今日", "本周", "本月", "本学期"]
-    )
+    # 创建选项卡
+    behavior_tabs = st.tabs(["📊 行为概览", "🔍 详细分析", "💡 改进建议"])
     
-    analysis_focus = st.multiselect(
-        "分析重点",
-        ["学习时间分布", "学习空间偏好", "学习资源使用", "学习效果评估", "学习行为模式"],
-        default=["学习时间分布", "学习行为模式"]
-    )
+    # 添加AI分析部分
+    with st.expander("🤖 获取AI个性化学习行为分析", expanded=True):
+        st.write("请填写以下信息，AI将为您提供深度的学习行为分析")
+        
+        # 创建表单收集学习行为数据
+        with st.form("learning_behavior_form"):
+            # 基本学习信息
+            col1, col2 = st.columns(2)
+            with col1:
+                study_time = st.number_input(
+                    "平均每日学习时长（小时）",
+                    min_value=0.0,
+                    max_value=24.0,
+                    value=2.5,
+                    step=0.5
+                )
+                attention_rate = st.slider(
+                    "平均专注度",
+                    min_value=0,
+                    max_value=100,
+                    value=85,
+                    format="%d%%"
+                )
+            
+            with col2:
+                task_completion = st.slider(
+                    "任务完成率",
+                    min_value=0,
+                    max_value=100,
+                    value=78,
+                    format="%d%%"
+                )
+                knowledge_mastery = st.slider(
+                    "知识点掌握度",
+                    min_value=0,
+                    max_value=100,
+                    value=82,
+                    format="%d%%"
+                )
+            
+            # 学习习惯
+            st.write("#### 学习习惯评估")
+            habits_col1, habits_col2 = st.columns(2)
+            
+            with habits_col1:
+                planning = st.select_slider(
+                    "学习计划性",
+                    options=["很差", "较差", "一般", "良好", "优秀"],
+                    value="良好"
+                )
+                note_taking = st.select_slider(
+                    "笔记记录习惯",
+                    options=["很差", "较差", "一般", "良好", "优秀"],
+                    value="良好"
+                )
+            
+            with habits_col2:
+                review_frequency = st.select_slider(
+                    "复习频率",
+                    options=["很少", "偶尔", "一般", "经常", "频繁"],
+                    value="经常"
+                )
+                self_reflection = st.select_slider(
+                    "自我反思程度",
+                    options=["很少", "偶尔", "一般", "经常", "频繁"],
+                    value="一般"
+                )
+            
+            # 学习困难
+            st.write("#### 学习困难")
+            difficulties = st.multiselect(
+                "目前遇到的主要学习困难（可多选）",
+                ["注意力不集中", "学习动力不足", "时间管理差", "记忆效果差", 
+                 "理解困难", "知识运用难", "学习方法不当", "其他"],
+                default=["注意力不集中", "时间管理差"]
+            )
+            
+            # 学习目标达成情况
+            st.write("#### 目标达成")
+            goal_achievement = st.text_area(
+                "描述您的学习目标达成情况",
+                placeholder="例如：完成了80%的计划任务，但是深度学习部分还需要加强..."
+            )
+            
+            analyze_button = st.form_submit_button("开始分析")
+        
+        if analyze_button:
+            with st.spinner("AI正在深入分析您的学习行为..."):
+                # 构建分析提示
+                prompt = f"""
+                请对以下学习行为数据进行全面分析，并提供改进建议：
+
+                基本学习数据：
+                - 日均学习时长：{study_time}小时
+                - 平均专注度：{attention_rate}%
+                - 任务完成率：{task_completion}%
+                - 知识掌握度：{knowledge_mastery}%
+
+                学习习惯评估：
+                - 计划性：{planning}
+                - 笔记习惯：{note_taking}
+                - 复习频率：{review_frequency}
+                - 自我反思：{self_reflection}
+
+                当前学习困难：{', '.join(difficulties)}
+
+                目标达成情况：{goal_achievement}
+
+                请提供：
+                1. 学习行为综合评估
+                2. 存在的主要问题分析
+                3. 学习效率提升建议
+                4. 针对性的改进策略
+                5. 可行的行动计划
+                
+                分析要具体且有建设性，注重实用性和可操作性。
+                """
+                
+                # 调用AI进行分析
+                ai = DouBaoAI()
+                messages = [
+                    {"role": "system", "content": "你是一个专业的学习行为分析专家，擅长诊断学习问题并提供个性化的改进建议。"},
+                    {"role": "user", "content": prompt}
+                ]
+                
+                response = ai.generate_response(messages)
+                
+                if "error" in response:
+                    st.error(f"生成分析报告时出现错误: {response['error']}")
+                else:
+                    try:
+                        analysis = response["choices"][0]["message"]["content"]
+                        
+                        # 显示分析结果
+                        st.success("✨ AI已完成学习行为分析")
+                        
+                        # 使用列布局展示分析内容
+                        report_col1, report_col2 = st.columns([2, 1])
+                        
+                        with report_col1:
+                            st.markdown(analysis)
+                        
+                        with report_col2:
+                            st.info("""
+                            💡 **温馨提示**
+                            
+                            - 建议定期进行学习行为分析
+                            - 根据分析结果调整学习策略
+                            - 持续跟踪改进效果
+                            - 建立良好的学习反馈循环
+                            """)
+                            
+                            # 添加下载报告按钮
+                            st.download_button(
+                                "📥 下载分析报告",
+                                analysis,
+                                file_name="learning_behavior_analysis.txt",
+                                mime="text/plain"
+                            )
+                    
+                    except (KeyError, IndexError):
+                        st.error("处理AI响应时出现错误，请稍后再试。")
     
-    # 生成模拟数据
-    if analysis_period == "今日":
-        time_range = 24
-        time_unit = "小时"
-    elif analysis_period == "本周":
-        time_range = 7
-        time_unit = "天"
-    elif analysis_period == "本月":
-        time_range = 30
-        time_unit = "天"
-    else:
-        time_range = 16
-        time_unit = "周"
-    
-    behavior_data = {
-        "时间分布": {
-            "labels": [str(i) for i in range(time_range)],
-            "学习时长": [random.uniform(0.5, 4.0) for _ in range(time_range)],
-            "专注度": [random.uniform(0.6, 0.95) for _ in range(time_range)]
-        },
-        "空间偏好": {
-            "传统学习空间": random.uniform(0.1, 0.3),
-            "休闲学习空间": random.uniform(0.1, 0.2),
-            "技能学习空间": random.uniform(0.1, 0.2),
-            "协作学习空间": random.uniform(0.1, 0.2),
-            "个性学习空间": random.uniform(0.1, 0.2),
-            "创新学习空间": random.uniform(0.05, 0.15),
-            "展演学习空间": random.uniform(0.05, 0.1)
-        },
-        "资源使用": {
-            "视频资源": random.uniform(0.2, 0.4),
-            "文本资源": random.uniform(0.2, 0.4),
-            "交互资源": random.uniform(0.1, 0.3),
-            "实践资源": random.uniform(0.1, 0.3),
-            "评估资源": random.uniform(0.05, 0.2)
-        },
-        "学习效果": {
-            "知识掌握": [random.uniform(0.7, 0.95) for _ in range(5)],
-            "技能提升": [random.uniform(0.6, 0.9) for _ in range(5)],
-            "学习满意度": [random.uniform(0.75, 0.95) for _ in range(5)]
-        }
-    }
-    
-    # 显示基础分析图表
-    if "学习时间分布" in analysis_focus:
-        st.subheader("学习时间分布")
+    # 行为概览选项卡
+    with behavior_tabs[0]:
+        st.write("### 学习行为概览")
+        
+        # 显示关键指标
+        metrics_cols = st.columns(4)
+        with metrics_cols[0]:
+            st.metric("平均学习时长", "2.5小时/天", "↑ 0.5小时")
+        with metrics_cols[1]:
+            st.metric("平均专注度", "85%", "↑ 5%")
+        with metrics_cols[2]:
+            st.metric("任务完成率", "78%", "↓ -2%")
+        with metrics_cols[3]:
+            st.metric("知识点掌握度", "82%", "↑ 3%")
+        
+        # 学习行为趋势图
+        st.write("### 学习行为趋势")
+        
+        # 生成示例数据
+        dates = pd.date_range(start='2023-02-19', end='2023-03-19', freq='D')
+        study_hours = np.random.normal(2.5, 0.5, size=len(dates))
+        attention_levels = np.random.normal(85, 5, size=len(dates))
+        
+        # 创建DataFrame
+        df = pd.DataFrame({
+            'date': dates,
+            'study_hours': study_hours,
+            'attention': attention_levels
+        })
+        
+        # 创建趋势图
         fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=behavior_data["时间分布"]["labels"],
-            y=behavior_data["时间分布"]["学习时长"],
-            name="学习时长(小时)",
-            marker_color="#1E88E5"
+        fig.add_trace(go.Scatter(
+            x=df['date'], 
+            y=df['study_hours'],
+            mode='lines',
+            name='学习时长(小时)'
         ))
         fig.add_trace(go.Scatter(
-            x=behavior_data["时间分布"]["labels"],
-            y=behavior_data["时间分布"]["专注度"],
-            name="专注度",
-            mode="lines+markers",
-            yaxis="y2",
-            marker=dict(color="#FFC107"),
-            line=dict(color="#FFC107")
+            x=df['date'], 
+            y=df['attention'],
+            mode='lines',
+            name='专注度(%)',
+            yaxis='y2'
         ))
+        
         fig.update_layout(
-            title=f"{analysis_period}学习时间分布",
-            xaxis_title=f"{time_unit}",
-            yaxis=dict(title="学习时长(小时)"),
+            title='学习行为趋势分析',
+            xaxis_title='日期',
+            yaxis_title='学习时长(小时)',
             yaxis2=dict(
-                title="专注度",
-                overlaying="y",
-                side="right",
-                range=[0, 1]
+                title='专注度(%)',
+                overlaying='y',
+                side='right',
+                range=[0, 100]
             ),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
         )
+        
         st.plotly_chart(fig, use_container_width=True)
     
-    if "学习空间偏好" in analysis_focus:
-        st.subheader("学习空间偏好")
+    # 详细分析选项卡
+    with behavior_tabs[1]:
+        st.write("### 详细学习行为分析")
+        
+        # 学习时间分布
+        st.write("#### 学习时间分布")
+        time_data = {
+            '时间段': ['早晨(6-9点)', '上午(9-12点)', '下午(12-18点)', '晚上(18-22点)', '深夜(22-6点)'],
+            '学习时长(小时)': [0.5, 0.8, 0.6, 1.2, 0.3]
+        }
+        time_df = pd.DataFrame(time_data)
+        
+        fig = px.bar(
+            time_df, 
+            x='时间段', 
+            y='学习时长(小时)',
+            title='学习时间分布',
+            color='学习时长(小时)',
+            color_continuous_scale=px.colors.sequential.Viridis
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # 学习内容分布
+        st.write("#### 学习内容分布")
+        content_data = {
+            '学习内容': ['理论学习', '实践操作', '复习巩固', '测试评估', '拓展学习'],
+            '占比': [35, 25, 20, 15, 5]
+        }
+        content_df = pd.DataFrame(content_data)
+        
         fig = px.pie(
-            values=list(behavior_data["空间偏好"].values()),
-            names=list(behavior_data["空间偏好"].keys()),
-            title="学习空间使用分布"
+            content_df,
+            values='占比',
+            names='学习内容',
+            title='学习内容分布'
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # 学习效率评估
+        st.write("#### 学习效率评估")
+        efficiency_data = {
+            '学习环境': ['安静环境', '嘈杂环境', '户外环境', '图书馆', '咖啡厅'],
+            '效率评分': [9.2, 6.5, 7.8, 8.9, 7.2]
+        }
+        efficiency_df = pd.DataFrame(efficiency_data)
+        
+        fig = px.bar(
+            efficiency_df,
+            x='学习环境',
+            y='效率评分',
+            title='不同环境学习效率评估',
+            color='效率评分',
+            color_continuous_scale=px.colors.sequential.Plasma
         )
         st.plotly_chart(fig, use_container_width=True)
     
-    # AI增强分析
-    st.subheader("AI增强分析")
-    
-    if st.button("生成AI分析报告"):
-        with st.spinner("AI正在分析学习行为数据..."):
-            # 调用DeepSeek进行分析
-            deepseek_ai = DeepSeekAI()
-            prompt = f"""
-            请分析以下学习行为数据，提供深入见解和改进建议:
-            
-            分析周期: {analysis_period}
-            分析重点: {', '.join(analysis_focus)}
-            
-            学习行为数据:
-            {json.dumps(behavior_data, ensure_ascii=False)}
-            
-            请提供:
-            1. 学习行为模式分析
-            2. 学习效率评估
-            3. 学习习惯优缺点
-            4. 针对性改进建议
-            5. 未来学习规划建议
-            
-            请确保分析深入、具体，并提供可操作的建议。
-            """
-            
-            messages = [
-                {"role": "system", "content": "你是一个专业的学习行为分析专家，擅长分析学习数据并提供个性化的学习建议。"},
-                {"role": "user", "content": prompt}
-            ]
-            
-            response = deepseek_ai.sync_generate_response(messages)
-            
-            if "error" in response:
-                st.error(f"生成分析报告时出现错误: {response.get('error', '未知错误')}")
-            else:
-                try:
-                    analysis_report = response["choices"][0]["message"]["content"]
-                    st.markdown("## 学习行为分析报告")
-                    st.markdown(analysis_report)
-                    
-                    # 添加下载按钮
-                    st.download_button(
-                        "下载分析报告",
-                        analysis_report,
-                        file_name=f"学习行为分析报告_{analysis_period}.md",
-                        mime="text/markdown"
-                    )
-                except (KeyError, IndexError):
-                    st.error("处理AI响应时出现错误，请稍后再试。")
-
-# 添加智能学习诊断功能
+    # 改进建议选项卡
+    with behavior_tabs[2]:
+        st.write("### 学习行为改进建议")
+        
+        # 显示改进建议
+        with st.container():
+            st.info("#### 时间管理优化")
+            st.write("""
+            1. **制定合理的学习计划**：根据个人精力分布，将重要内容安排在精力充沛的时段
+            2. **使用番茄工作法**：25分钟专注学习，5分钟短暂休息
+            3. **建立每日例行学习**：固定时间段专门用于学习，形成习惯
+            4. **减少无效学习时间**：避免边学习边刷手机等分散注意力的行为
+            """)
+        
+        with st.container():
+            st.success("#### 学习方法改进")
+            st.write("""
+            1. **主动学习法**：提前预习，带着问题学习
+            2. **费曼学习法**：学会向他人解释所学内容，检验理解程度
+            3. **间隔重复**：科学安排复习时间，提高记忆效果
+            4. **思维导图**：构建知识体系，加深理解
+            """)
+        
+        with st.container():
+            st.warning("#### 专注力提升")
+            st.write("""
+            1. **环境优化**：选择安静、整洁的学习环境
+            2. **减少干扰**：学习时关闭社交媒体通知
+            3. **冥想训练**：每天进行5-10分钟的专注力训练
+            4. **适当休息**：避免长时间连续学习导致的注意力下降
+            """)
+        
+        with st.container():
+            st.error("#### 学习动力维持")
+            st.write("""
+            1. **设定明确目标**：将大目标分解为小目标，获得成就感
+            2. **奖励机制**：完成学习任务后给予自己适当奖励
+            3. **学习社群**：加入学习小组，相互监督和鼓励
+            4. **可视化进度**：记录学习进展，看到自己的成长
+            """)
 
 def render_learning_diagnosis():
-    """基于DeepSeek的智能学习诊断"""
-    st.subheader("智能学习诊断")
+    """渲染学习诊断页面"""
+    st.subheader("学习诊断")
     
-    # 学习者信息输入
-    with st.form("learning_diagnosis_form"):
-        learning_subject = st.text_input("学习科目/领域")
-        current_level = st.selectbox("当前水平", ["初学者", "基础", "中级", "高级", "专家"])
+    # 创建表单
+    with st.form(key="diagnosis_form"):
+        # 表单内容保持不变
+        student_name = st.text_input("学生姓名")
+        subject = st.selectbox("学科", ["数学", "语文", "英语", "物理", "化学", "生物"])
         
-        learning_challenges = st.text_area(
-            "学习中遇到的困难",
-            placeholder="例如：难以理解某些概念、记忆效果不佳、缺乏学习动力等"
+        # 上传成绩数据
+        uploaded_file = st.file_uploader("上传成绩数据(CSV格式)", type=["csv"])
+        
+        # 诊断选项
+        diagnosis_options = st.multiselect(
+            "诊断内容",
+            ["知识点掌握情况", "学习习惯分析", "学习效率评估", "学习风格识别", "学习障碍识别"],
+            ["知识点掌握情况", "学习习惯分析"]
         )
         
-        learning_goals = st.text_area(
-            "学习目标",
-            placeholder="例如：掌握核心概念、通过考试、应用于实际项目等"
-        )
-        
-        learning_methods = st.multiselect(
-            "当前学习方法",
-            ["课堂学习", "自学", "小组学习", "在线课程", "实践操作", "阅读", "视频学习", "其他"]
-        )
-        
-        learning_time = st.slider("每周学习时间(小时)", 1, 40, 10)
-        
-        submit = st.form_submit_button("开始诊断")
-        
-        if submit:
-            if not learning_subject or not learning_challenges or not learning_goals:
-                st.error("请填写学习科目、困难和目标")
-            else:
-                with st.spinner("AI正在进行学习诊断..."):
-                    # 构建诊断请求
-                    diagnosis_request = {
-                        "subject": learning_subject,
-                        "level": current_level,
-                        "challenges": learning_challenges,
-                        "goals": learning_goals,
-                        "methods": learning_methods,
-                        "time": learning_time
-                    }
+        # 提交按钮
+        submit_button = st.form_submit_button("开始诊断")
+    
+    # 表单外处理提交逻辑
+    if submit_button:
+        if not student_name:
+            st.error("请输入学生姓名")
+        else:
+            with st.spinner("正在进行学习诊断..."):
+                # 生成诊断报告
+                st.success("诊断完成！")
+                
+                # 显示诊断结果
+                st.subheader("诊断结果")
+                
+                # 模拟诊断数据
+                diagnosis_data = generate_diagnosis_data(subject)
+                
+                # 知识点掌握情况
+                if "知识点掌握情况" in diagnosis_options:
+                    st.write("#### 知识点掌握情况")
                     
-                    # 调用DeepSeek进行诊断
-                    deepseek_ai = DeepSeekAI()
-                    prompt = f"""
-                    请对以下学习情况进行全面诊断，并提供改进方案:
+                    # 创建知识点掌握情况图表
+                    fig = px.bar(
+                        diagnosis_data["knowledge_points"],
+                        x="knowledge_point",
+                        y="mastery",
+                        color="mastery",
+                        color_continuous_scale=["red", "yellow", "green"],
+                        labels={"knowledge_point": "知识点", "mastery": "掌握程度"},
+                        title="知识点掌握程度分析"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # 学习习惯分析
+                if "学习习惯分析" in diagnosis_options:
+                    st.write("#### 学习习惯分析")
                     
-                    学习科目: {learning_subject}
-                    当前水平: {current_level}
-                    学习困难: {learning_challenges}
-                    学习目标: {learning_goals}
-                    学习方法: {', '.join(learning_methods) if learning_methods else '未指定'}
-                    每周学习时间: {learning_time}小时
+                    # 创建学习习惯雷达图
+                    fig = go.Figure()
                     
-                    请提供:
-                    1. 学习问题诊断
-                    2. 学习方法评估
-                    3. 时间管理建议
-                    4. 针对性学习策略
-                    5. 资源推荐
-                    6. 学习计划调整
+                    categories = list(diagnosis_data["learning_habits"].keys())
+                    values = list(diagnosis_data["learning_habits"].values())
                     
-                    请确保诊断全面、具体，并提供可操作的改进方案。
-                    """
+                    fig.add_trace(go.Scatterpolar(
+                        r=values,
+                        theta=categories,
+                        fill='toself',
+                        name='学习习惯'
+                    ))
                     
-                    messages = [
-                        {"role": "system", "content": "你是一个专业的学习诊断专家，擅长分析学习问题并提供个性化的学习改进方案。"},
-                        {"role": "user", "content": prompt}
-                    ]
+                    fig.update_layout(
+                        polar=dict(
+                            radialaxis=dict(
+                                visible=True,
+                                range=[0, 10]
+                            )
+                        ),
+                        title="学习习惯雷达图"
+                    )
                     
-                    response = deepseek_ai.sync_generate_response(messages)
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # 学习效率评估
+                if "学习效率评估" in diagnosis_options:
+                    st.write("#### 学习效率评估")
                     
-                    if "error" in response:
-                        st.error(f"生成诊断报告时出现错误: {response.get('error', '未知错误')}")
-                    else:
-                        try:
-                            diagnosis_report = response["choices"][0]["message"]["content"]
-                            st.markdown("## 学习诊断报告")
-                            st.markdown(diagnosis_report)
-                            
-                            # 添加下载和分享选项
-                            col1, col2 = st.columns(2)
-                            with col1:
-                                st.download_button(
-                                    "下载诊断报告",
-                                    diagnosis_report,
-                                    file_name=f"{learning_subject}_学习诊断报告.md",
-                                    mime="text/markdown"
-                                )
-                            with col2:
-                                st.button("分享诊断报告", help="此功能将在未来版本中实现")
-                        except (KeyError, IndexError):
-                            st.error("处理AI响应时出现错误，请稍后再试。")
+                    # 创建学习效率折线图
+                    fig = px.line(
+                        diagnosis_data["efficiency"],
+                        x="date",
+                        y="efficiency",
+                        labels={"date": "日期", "efficiency": "学习效率"},
+                        title="学习效率趋势"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # 学习风格识别
+                if "学习风格识别" in diagnosis_options:
+                    st.write("#### 学习风格识别")
+                    
+                    # 创建学习风格饼图
+                    fig = px.pie(
+                        values=list(diagnosis_data["learning_style"].values()),
+                        names=list(diagnosis_data["learning_style"].keys()),
+                        title="学习风格分布"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # 学习障碍识别
+                if "学习障碍识别" in diagnosis_options:
+                    st.write("#### 学习障碍识别")
+                    
+                    for obstacle, description in diagnosis_data["obstacles"].items():
+                        st.info(f"**{obstacle}**: {description}")
+                
+                # 生成诊断报告
+                report = generate_diagnosis_report(student_name, subject, diagnosis_data, diagnosis_options)
+                
+                # 表单外部使用下载按钮
+                st.download_button(
+                    label="下载诊断报告",
+                    data=report,
+                    file_name=f"{student_name}_{subject}_诊断报告.txt",
+                    mime="text/plain"
+                )
 
 # 添加帮助页面
 def render_help_page():
@@ -3705,76 +3953,288 @@ def render_learning_space():
     """渲染学习空间推荐页面"""
     st.title("学习空间推荐")
     
-    # 创建选项卡
-    tab1, tab2, tab3 = st.tabs(["🏫 物理空间", "💻 虚拟空间", "📱 泛在空间"])
-    
-    with tab1:
-        st.subheader("物理学习空间推荐")
+    # 添加AI推荐部分
+    with st.expander("🤖 获取AI个性化空间推荐", expanded=True):
+        st.write("请回答以下问题，AI将为您推荐最适合的学习空间")
         
-        # 筛选条件
-        col1, col2 = st.columns(2)
-        with col1:
-            location = st.selectbox(
-                "选择校区",
-                ["主校区", "新校区", "城市校区", "校外实践基地"]  # 添加校外实践基地选项
+        # 创建表单收集用户信息
+        with st.form("space_recommendation_form"):
+            # 学习目的
+            learning_purpose = st.selectbox(
+                "您的主要学习目的是什么？",
+                ["课程学习", "自主学习", "小组讨论", "实验实践", "创新研究"]
             )
-        with col2:
-            # 根据location动态更新空间类型选项
-            if location == "校外实践基地":
-                space_type = st.selectbox(
-                    "空间类型",
-                    ["企业实训基地", "科研实践基地", "创新创业基地", "产学研基地"]
-                )
-            else:
-                space_type = st.selectbox(
-                    "空间类型",
-                    ["自习室", "图书馆", "实验室", "研讨室"]
-                )
+            
+            # 学习方式偏好
+            learning_style = st.multiselect(
+                "您偏好的学习方式是？（可多选）",
+                ["安静独立", "互动交流", "动手实践", "多媒体辅助", "沉浸式体验"],
+                default=["安静独立"]
+            )
+            
+            # 学习时间段
+            time_preference = st.select_slider(
+                "您计划的学习时间段是？",
+                options=["早晨", "上午", "下午", "晚上", "深夜"],
+                value="下午"
+            )
+            
+            # 空间要求
+            space_requirements = st.multiselect(
+                "对学习空间有什么特殊要求？（可多选）",
+                ["网络条件好", "设备齐全", "环境安静", "空间宽敞", "交通便利"],
+                default=["环境安静"]
+            )
+            
+            submit = st.form_submit_button("获取推荐")
         
-        # 时间选择
-        time_slot = st.select_slider(
-            "时间段",
-            options=["8:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "22:00"],
-            value=("8:00", "22:00")
-        )
+        if submit:
+            with st.spinner("AI正在分析最适合您的学习空间..."):
+                # 构建提示信息
+                prompt = f"""
+                请根据以下学习者的需求特征，推荐最适合的学习空间（可以是物理空间、虚拟空间或泛在空间的组合）：
+                
+                学习目的：{learning_purpose}
+                学习方式偏好：{', '.join(learning_style)}
+                时间段：{time_preference}
+                空间要求：{', '.join(space_requirements)}
+                
+                请提供：
+                1. 推荐的具体空间组合
+                2. 推荐理由
+                3. 使用建议
+                4. 注意事项
+                
+                回答要具体且有针对性，并考虑物理空间、虚拟空间和泛在空间的优势互补。
+                """
+                
+                # 调用AI生成推荐
+                ai = DouBaoAI()  # 或其他AI实现
+                messages = [
+                    {"role": "system", "content": "你是一个专业的学习空间推荐专家，擅长根据学习者的具体需求推荐最适合的学习空间组合。"},
+                    {"role": "user", "content": prompt}
+                ]
+                
+                response = ai.generate_response(messages)
+                
+                if "error" in response:
+                    st.error(f"生成推荐时出现错误: {response['error']}")
+                else:
+                    try:
+                        recommendation = response["choices"][0]["message"]["content"]
+                        
+                        # 使用卡片样式显示推荐结果
+                        st.success("✨ AI已为您生成个性化的空间推荐")
+                        
+                        # 使用列布局展示推荐内容
+                        col1, col2 = st.columns([2, 1])
+                        
+                        with col1:
+                            st.markdown(recommendation)
+                        
+                        with col2:
+                            st.info("""
+                            💡 **小贴士**
+                            
+                            - 可以尝试不同空间的组合使用
+                            - 根据实际情况灵活调整
+                            - 定期评估空间使用效果
+                            - 收集反馈持续优化
+                            """)
+                    
+                    except (KeyError, IndexError):
+                        st.error("处理AI响应时出现错误，请稍后再试。")
+    
+    # 原有的空间展示代码保持不变
+    space_tabs = st.tabs(["🏫 物理空间", "🖥️ 虚拟空间", "🌐 泛在空间"])
+    
+    # 物理空间选项卡
+    with space_tabs[0]:
+        st.write("### 物理学习空间")
         
-        # 生成示例数据
-        if location == "校外实践基地":
-            spaces = pd.DataFrame({
-                'name': ['腾讯实训基地', '华为研发中心', '创新孵化园', '产业研究院'],
-                'type': ['企业实训基地', '科研实践基地', '创新创业基地', '产学研基地'],
-                'capacity': [50, 30, 100, 80],
-                'current': [35, 20, 60, 45],
-                'rating': [4.8, 4.9, 4.7, 4.8],
-                'distance': ['5km', '3km', '8km', '6km']  # 添加距离信息
-            })
-        else:
-            spaces = pd.DataFrame({
-                'name': ['A101自习室', 'B203研讨室', '图书馆3楼', '创新实验室'],
-                'type': ['自习室', '研讨室', '图书馆', '实验室'],
-                'capacity': [100, 20, 200, 50],
-                'current': [65, 5, 120, 30],
-                'rating': [4.5, 4.8, 4.6, 4.7]
-            })
+        # 校内学习空间
+        st.write("#### 校内学习空间")
+        indoor_cols = st.columns(3)
         
-        # 显示推荐空间
-        st.subheader("推荐空间")
-        for _, space in spaces.iterrows():
-            with st.container():
-                col1, col2, col3 = st.columns([3, 2, 1])
-                with col1:
-                    st.write(f"**{space['name']}**")
-                    st.write(f"类型: {space['type']}")
-                with col2:
-                    st.write(f"容量: {space['current']}/{space['capacity']}")
-                    if location == "校外实践基地":
-                        st.write(f"距离: {space['distance']}")  # 显示距离信息
-                with col3:
-                    st.write(f"评分: {space['rating']}⭐")
-                st.progress(space['current']/space['capacity'])
-                if location == "校外实践基地":
-                    st.info(f"📍 点击[查看地图](https://map.baidu.com/search/{space['name']})")  # 添加地图链接
-                st.write("---")
+        # 将校内空间分组显示
+        indoor_spaces = list(LearningSpaceModel.PHYSICAL_SPACES['indoor'].items())
+        for i, (space_id, space_info) in enumerate(indoor_spaces):
+            with indoor_cols[i % 3]:
+                st.info(f"**{space_info['name']}**")
+                st.write(space_info['description'])
+                st.metric("使用人数", f"{random.randint(10, 100)}人")
+                st.metric("空间面积", f"{random.randint(50, 200)}㎡")
+                st.metric("设备完善度", f"{random.randint(70, 95)}%")
+                st.write(f"推荐指数: {'⭐' * random.randint(3, 5)}")
+        
+        # 校外学习空间
+        st.write("#### 校外学习空间")
+        outdoor_cols = st.columns(3)
+        
+        # 将校外空间分组显示
+        outdoor_spaces = list(LearningSpaceModel.PHYSICAL_SPACES['outdoor'].items())
+        for i, (space_id, space_info) in enumerate(outdoor_spaces):
+            with outdoor_cols[i % 3]:
+                st.success(f"**{space_info['name']}**")
+                st.write(space_info['description'])
+                st.metric("距离校园", f"{random.randint(1, 10)}公里")
+                st.metric("开放时间", f"{random.choice(['全天', '9:00-17:00', '8:00-22:00'])}")
+                st.write(f"适用人群: {random.choice(['所有学生', '研究生', '本科生', '所有人'])}")
+                st.write(f"推荐指数: {'⭐' * random.randint(3, 5)}")
+        
+        # 添加物理空间说明
+        st.info("""
+        **物理学习空间**是指具有实体形态的学习场所，包括校内的传统教室、图书馆、实验室等，
+        以及校外的社区、家庭、企业等学习环境。这些空间为学习者提供了不同类型的学习体验和资源。
+        """)
+    
+    # 虚拟空间选项卡
+    with space_tabs[1]:
+        st.write("### 虚拟学习空间")
+        
+        # 显示虚拟空间分类
+        virtual_cols = st.columns(2)
+        
+        # 将虚拟空间分组显示
+        virtual_spaces = list(LearningSpaceModel.VIRTUAL_SPACES.items())
+        for i, (space_id, space_info) in enumerate(virtual_spaces):
+            with virtual_cols[i % 2]:
+                st.warning(f"**{space_info['name']}**")
+                
+                # 显示功能特点
+                st.write("**功能特点:**")
+                for feature in space_info['features']:
+                    st.write(f"- {feature}")
+                
+                # 显示指标
+                if 'active_users' in space_info:
+                    st.metric("活跃用户", f"{space_info['active_users']}人")
+                if 'course_count' in space_info:
+                    st.metric("课程数量", f"{space_info['course_count']}个")
+                if 'satisfaction' in space_info:
+                    st.metric("满意度评分", f"{space_info['satisfaction']:.1f}/5.0")
+                if 'resource_count' in space_info:
+                    st.metric("资源数量", f"{space_info['resource_count']}个")
+                if 'daily_visits' in space_info:
+                    st.metric("日访问量", f"{space_info['daily_visits']}次")
+                if 'experiment_count' in space_info:
+                    st.metric("实验数量", f"{space_info['experiment_count']}个")
+                if 'active_projects' in space_info:
+                    st.metric("活跃项目", f"{space_info['active_projects']}个")
+                if 'team_count' in space_info:
+                    st.metric("团队数量", f"{space_info['team_count']}个")
+                
+                st.write(f"推荐指数: {'⭐' * random.randint(3, 5)}")
+        
+        # 添加虚拟空间说明
+        st.info("""
+        **虚拟学习空间**是指借助数字技术构建的在线学习环境，包括在线课堂、数字图书馆、虚拟实验室等。
+        这些空间突破了时间和空间的限制，为学习者提供了更加灵活、个性化的学习体验。
+        """)
+    
+    # 泛在空间选项卡
+    with space_tabs[2]:
+        st.write("### 泛在学习空间")
+        
+        # 数据层
+        st.write("#### 数据层")
+        data_cols = st.columns(4)
+        
+        # 物理空间数据
+        with data_cols[0]:
+            data_info = LearningSpaceModel.UBIQUITOUS_SPACES['data_layer']['physical_data']
+            st.info(f"**{data_info['name']}**")
+            st.metric("活跃学习者", f"{data_info['active_learners']}人")
+            st.metric("空间利用率", f"{data_info['space_usage']*100:.1f}%")
+        
+        # 虚拟空间数据
+        with data_cols[1]:
+            data_info = LearningSpaceModel.UBIQUITOUS_SPACES['data_layer']['virtual_data']
+            st.info(f"**{data_info['name']}**")
+            st.metric("问答会话数", f"{data_info['qa_sessions']}次")
+            st.metric("资源利用率", f"{data_info['resource_usage']*100:.1f}%")
+        
+        # 学习行为数据
+        with data_cols[2]:
+            data_info = LearningSpaceModel.UBIQUITOUS_SPACES['data_layer']['learning_behavior']
+            st.info(f"**{data_info['name']}**")
+            st.metric("个性化路径", f"{data_info['personalized_paths']}条")
+            st.metric("参与度", f"{data_info['engagement_rate']*100:.1f}%")
+        
+        # 交互数据
+        with data_cols[3]:
+            data_info = LearningSpaceModel.UBIQUITOUS_SPACES['data_layer']['interaction_data']
+            st.info(f"**{data_info['name']}**")
+            st.metric("响应时间", data_info['response_time'])
+            st.metric("交互次数", f"{data_info['interaction_count']}次")
+        
+        # 服务层
+        st.write("#### 服务层")
+        service_cols = st.columns(3)
+        
+        # 学习服务
+        with service_cols[0]:
+            service_info = LearningSpaceModel.UBIQUITOUS_SPACES['service_layer']['learning_services']
+            st.success(f"**{service_info['name']}**")
+            st.write("**功能特点:**")
+            for feature in service_info['features']:
+                st.write(f"- {feature}")
+            st.metric("活跃用户", f"{service_info['active_users']}人")
+        
+        # 数据服务
+        with service_cols[1]:
+            service_info = LearningSpaceModel.UBIQUITOUS_SPACES['service_layer']['data_services']
+            st.success(f"**{service_info['name']}**")
+            st.write("**功能特点:**")
+            for feature in service_info['features']:
+                st.write(f"- {feature}")
+            st.metric("数据点数", f"{service_info['data_points']}个")
+        
+        # 集成服务
+        with service_cols[2]:
+            service_info = LearningSpaceModel.UBIQUITOUS_SPACES['service_layer']['integration_services']
+            st.success(f"**{service_info['name']}**")
+            st.write("**功能特点:**")
+            for feature in service_info['features']:
+                st.write(f"- {feature}")
+            st.metric("连接系统", f"{service_info['connected_systems']}个")
+        
+        # 应用层
+        st.write("#### 应用层")
+        app_cols = st.columns(3)
+        
+        # AI导师服务
+        with app_cols[0]:
+            app_info = LearningSpaceModel.UBIQUITOUS_SPACES['application_layer']['ai_tutor']
+            st.warning(f"**{app_info['name']}**")
+            st.write("**功能特点:**")
+            for feature in app_info['features']:
+                st.write(f"- {feature}")
+            st.metric("活跃会话", f"{app_info['active_sessions']}个")
+        
+        # 资源访问服务
+        with app_cols[1]:
+            app_info = LearningSpaceModel.UBIQUITOUS_SPACES['application_layer']['resource_access']
+            st.warning(f"**{app_info['name']}**")
+            st.write("**功能特点:**")
+            for feature in app_info['features']:
+                st.write(f"- {feature}")
+            st.metric("日请求量", f"{app_info['daily_requests']}次")
+        
+        # 学习分析服务
+        with app_cols[2]:
+            app_info = LearningSpaceModel.UBIQUITOUS_SPACES['application_layer']['learning_analytics']
+            st.warning(f"**{app_info['name']}**")
+            st.write("**功能特点:**")
+            for feature in app_info['features']:
+                st.write(f"- {feature}")
+            st.metric("分析任务", f"{app_info['analysis_tasks']}个")
+        
+        # 添加泛在空间说明
+        st.info("""
+        **泛在学习空间**是一种无处不在的学习环境，它整合了物理和虚拟空间的数据和服务，
+        通过三层架构（数据层、服务层、应用层）为学习者提供随时随地的智能学习支持。
+        """)
 
 def render_settings():
     """渲染设置页面"""
@@ -4028,6 +4488,117 @@ class DouBaoAI(BaseAI):
             error_msg = f"豆包API错误: {str(e)}"
             st.error(error_msg)
             return {"error": error_msg}
+
+def generate_diagnosis_data(subject):
+    """生成模拟诊断数据"""
+    # 知识点掌握情况
+    knowledge_points = []
+    if subject == "数学":
+        points = ["代数基础", "几何概念", "函数应用", "概率统计", "微积分基础"]
+    elif subject == "英语":
+        points = ["词汇量", "语法规则", "阅读理解", "写作能力", "听力水平"]
+    elif subject == "物理":
+        points = ["力学", "热学", "光学", "电磁学", "量子物理"]
+    else:
+        points = ["基础概念", "核心理论", "实践应用", "综合分析", "创新思维"]
+    
+    for point in points:
+        knowledge_points.append({
+            "knowledge_point": point,
+            "mastery": random.uniform(0.3, 0.95)
+        })
+    
+    # 学习习惯分析
+    learning_habits = {
+        "专注度": random.uniform(3, 10),
+        "计划性": random.uniform(3, 10),
+        "持续性": random.uniform(3, 10),
+        "主动性": random.uniform(3, 10),
+        "反思能力": random.uniform(3, 10)
+    }
+    
+    # 学习效率评估
+    dates = pd.date_range(end=datetime.now(), periods=10, freq='D')
+    efficiency = []
+    for date in dates:
+        efficiency.append({
+            "date": date.strftime("%m-%d"),
+            "efficiency": random.uniform(0.4, 0.9)
+        })
+    
+    # 学习风格识别
+    learning_style = {
+        "视觉型": random.uniform(10, 40),
+        "听觉型": random.uniform(10, 30),
+        "读写型": random.uniform(10, 30),
+        "动觉型": random.uniform(10, 30)
+    }
+    
+    # 学习障碍识别
+    obstacles = {
+        "注意力分散": "学习过程中容易被外界干扰，难以长时间保持专注。",
+        "知识断层": "部分基础知识掌握不牢固，影响后续学习。",
+        "学习动力不足": "缺乏明确的学习目标和内在动力。"
+    }
+    
+    return {
+        "knowledge_points": knowledge_points,
+        "learning_habits": learning_habits,
+        "efficiency": efficiency,
+        "learning_style": learning_style,
+        "obstacles": obstacles
+    }
+
+def generate_diagnosis_report(student_name, subject, diagnosis_data, diagnosis_options):
+    """生成诊断报告文本"""
+    report = f"学习诊断报告\n"
+    report += f"学生: {student_name}\n"
+    report += f"学科: {subject}\n"
+    report += f"诊断日期: {datetime.now().strftime('%Y-%m-%d')}\n\n"
+    
+    if "知识点掌握情况" in diagnosis_options:
+        report += "知识点掌握情况:\n"
+        for point in diagnosis_data["knowledge_points"]:
+            mastery = point["mastery"] * 100
+            level = "优秀" if mastery >= 80 else "良好" if mastery >= 60 else "需要提升"
+            report += f"- {point['knowledge_point']}: {mastery:.1f}% ({level})\n"
+        report += "\n"
+    
+    if "学习习惯分析" in diagnosis_options:
+        report += "学习习惯分析:\n"
+        for habit, score in diagnosis_data["learning_habits"].items():
+            level = "优秀" if score >= 8 else "良好" if score >= 6 else "需要提升"
+            report += f"- {habit}: {score:.1f}/10 ({level})\n"
+        report += "\n"
+    
+    if "学习效率评估" in diagnosis_options:
+        avg_efficiency = sum(item["efficiency"] for item in diagnosis_data["efficiency"]) / len(diagnosis_data["efficiency"])
+        report += f"学习效率评估: {avg_efficiency*100:.1f}%\n\n"
+    
+    if "学习风格识别" in diagnosis_options:
+        report += "学习风格识别:\n"
+        for style, percentage in diagnosis_data["learning_style"].items():
+            report += f"- {style}: {percentage:.1f}%\n"
+        
+        # 确定主要学习风格
+        main_style = max(diagnosis_data["learning_style"].items(), key=lambda x: x[1])[0]
+        report += f"\n主要学习风格: {main_style}\n\n"
+    
+    if "学习障碍识别" in diagnosis_options:
+        report += "学习障碍识别:\n"
+        for obstacle, description in diagnosis_data["obstacles"].items():
+            report += f"- {obstacle}: {description}\n"
+        report += "\n"
+    
+    # 添加改进建议
+    report += "改进建议:\n"
+    report += "1. 制定明确的学习计划，将大目标分解为小任务\n"
+    report += "2. 采用适合自己学习风格的学习方法\n"
+    report += "3. 定期复习，巩固知识点\n"
+    report += "4. 寻求老师或同学的帮助，解决难点问题\n"
+    report += "5. 保持良好的学习习惯，提高学习效率\n"
+    
+    return report
 
 if __name__ == "__main__":
     main() 
