@@ -2166,17 +2166,27 @@ def render_ai_assistant():
         key="selected_ai_model"
     )
 
+    # 显示对应模型的欢迎语
+    welcome_messages = {
+        "DeepSeek": "您好！我是基于DeepSeek的智能学习助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？",
+        "Kimi": "您好！我是基于Kimi的智能学习助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？",
+        "文心一言": "您好！我是基于文心一言的智能学习助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？",
+        "豆包": "您好！我是基于豆包的智能学习助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？"
+    }
+    
+    st.write(f"AI助手({selected_model}): {welcome_messages[selected_model]}")
+
     # 初始化会话状态
     if 'messages' not in st.session_state:
         st.session_state.messages = []
-
+        
     # 显示对话历史
     for message in st.session_state.messages:
         if message["role"] == "user":
             st.write(f"您: {message['content']}")
         else:
             st.write(f"AI助手({selected_model}): {message['content']}")
-
+    
     # 用户输入和按钮
     with st.form(key="chat_form"):
         user_input = st.text_area("请输入您的问题:", key="chat_input")
