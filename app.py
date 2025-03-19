@@ -1989,21 +1989,23 @@ class BaseAI:
 class DeepSeekAI(BaseAI):
     """DeepSeek AI实现"""
     def __init__(self):
+        """初始化DeepSeek API客户端"""
         super().__init__()
         self.name = "DeepSeek"
-        self.api_key = "sk-fd1c7c81430b433daffcc8ebee130906"
+        
+        load_dotenv()  # 确保加载了.env文件
+        self.api_key = os.getenv('DEEPSEEK_API_KEY')
         self.base_url = "https://api.deepseek.com/v1"
+        self.model = os.getenv('DEEPSEEK_MODEL', 'deepseek-chat')
+        
+        if not self.api_key:
+            st.error("DeepSeek API密钥未配置，请在.env文件中设置DEEPSEEK_API_KEY")
+            return
+            
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
-        self.session = requests.Session()
-        retry = Retry(
-            total=3,
-            backoff_factor=0.5,
-            status_forcelist=[500, 502, 503, 504]
-        )
-        self.session.mount('https://', HTTPAdapter(max_retries=retry))
 
     def generate_response(self, messages, **kwargs):
         try:
@@ -2011,7 +2013,7 @@ class DeepSeekAI(BaseAI):
                 f"{self.base_url}/chat/completions",
                 headers=self.headers,
                 json={
-                    "model": "deepseek-chat",
+                    "model": self.model,
                     "messages": messages,
                     "temperature": kwargs.get('temperature', 0.7),
                     "max_tokens": kwargs.get('max_tokens', 2000),
