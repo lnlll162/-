@@ -180,31 +180,24 @@ def log_activity(user_id, action, details=None):
 class AuthConfig:
     def __init__(self):
         self.users_file = "users.json"
-        self.init_users()
-        self.max_login_attempts = 5
-        self.lockout_time = 30  # 锁定时间（分钟）
-    
-    def init_users(self):
-        # 如果用户文件不存在，创建默认用户
         if not os.path.exists(self.users_file):
-            default_users = {
-                "admin": self.hash_password("admin123"),
-                "user": self.hash_password("user123")
-            }
             with open(self.users_file, "w") as f:
-                json.dump(default_users, f)
+                json.dump({}, f)
     
-    @staticmethod
-    def hash_password(password):
-        return hashlib.sha256(password.encode()).hexdigest()
-    
-    def verify_user(self, username, password):
+    def verify_login(self, username: str, password: str) -> bool:
+        """验证用户登录"""
         try:
             with open(self.users_file, "r") as f:
                 users = json.load(f)
-            return username in users and users[username] == self.hash_password(password)
+            if username in users and users[username] == self.hash_password(password):
+                return True
+            return False
         except:
             return False
+    
+    def hash_password(self, password: str) -> str:
+        """密码加密"""
+        return hashlib.sha256(password.encode()).hexdigest()
     
     def add_user(self, username, password):
         """添加新用户"""
@@ -250,6 +243,12 @@ class AuthConfig:
             return True, "密码重置成功"
         except:
             return False, "系统错误"
+
+# 添加验证登录的函数
+def verify_login(username: str, password: str) -> bool:
+    """验证用户登录信息"""
+    auth = AuthConfig()
+    return auth.verify_login(username, password)
 
 # 登录页面
 def render_login_page():
