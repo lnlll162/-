@@ -306,11 +306,12 @@ def render_login_page():
             
             if submitted:
                 if verify_login(username, password):
+                    # 更新session状态
                     st.session_state.logged_in = True
                     st.session_state.username = username
-                    st.success("登录成功！正在跳转...")
-                    time.sleep(1)
-                    st.experimental_rerun()
+                    st.success("登录成功！")
+                    # 使用 st.rerun() 替代 st.experimental_rerun()
+                    st.rerun()
                 else:
                     st.error("用户名或密码错误，请重试")
         
@@ -1098,14 +1099,9 @@ def main():
     theme = st.session_state.get('theme', 'Light')
     apply_theme(theme)
     
-    # 根据登录状态显示不同内容
+    # 检查登录状态
     if not st.session_state.logged_in:
-        if st.session_state.get('page') == "register":
-            register_page()
-        elif st.session_state.get('page') == "reset":
-            reset_password_page()
-        else:
-            render_login_page()
+        render_login_page()
     else:
         # 渲染侧边栏
         sidebar()
