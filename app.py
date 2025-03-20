@@ -252,32 +252,99 @@ class AuthConfig:
             return False, "系统错误"
 
 # 登录页面
-def login_page():
-    st.title("智慧学习空间数据大屏 - 登录")
+def render_login_page():
+    """渲染优化后的登录页面"""
     
-    with st.form("login_form"):
-        username = st.text_input("用户名")
-        password = st.text_input("密码", type="password")
-        col1, col2 = st.columns(2)
-        submit = col1.form_submit_button("登录")
+    # 页面布局优化
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        # 添加Logo和欢迎信息
+        st.markdown("""
+        <div style='text-align: center; padding: 2rem 0;'>
+            <h1 style='color: #1E88E5;'>🎓 智慧学习空间</h1>
+            <p style='color: #666; font-size: 1.2rem;'>欢迎来到基于AIGC的智能学习平台</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        if submit:
-            auth_config = AuthConfig()
-            if auth_config.verify_user(username, password):
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.rerun()
-            else:
-                st.error("用户名或密码错误")
-    
-    # 添加注册和重置密码链接
-    col1, col2 = st.columns(2)
-    if col1.button("注册新用户"):
-        st.session_state.page = "register"
-        st.rerun()
-    if col2.button("忘记密码"):
-        st.session_state.page = "reset"
-        st.rerun()
+        # 登录表单美化
+        with st.form("login_form", clear_on_submit=True):
+            st.markdown("""
+            <style>
+                div[data-testid="stForm"] {
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 2rem;
+                    border-radius: 10px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                }
+                div.stButton > button {
+                    width: 100%;
+                    background-color: #1E88E5;
+                    color: white;
+                    font-weight: bold;
+                    padding: 0.5rem 0;
+                    border: none;
+                    border-radius: 5px;
+                    margin-top: 1rem;
+                }
+                div.stButton > button:hover {
+                    background-color: #1976D2;
+                    transition: all 0.3s ease;
+                }
+            </style>
+            """, unsafe_allow_html=True)
+            
+            username = st.text_input("用户名", placeholder="请输入用户名", 
+                                   help="输入您的用户名进行登录")
+            
+            password = st.text_input("密码", type="password", placeholder="请输入密码",
+                                   help="输入您的账户密码")
+            
+            # 记住我选项
+            remember_me = st.checkbox("记住我", value=False)
+            
+            submitted = st.form_submit_button("登 录")
+            
+            if submitted:
+                if verify_login(username, password):
+                    st.session_state.logged_in = True
+                    st.session_state.username = username
+                    st.success("登录成功！正在跳转...")
+                    time.sleep(1)
+                    st.experimental_rerun()
+                else:
+                    st.error("用户名或密码错误，请重试")
+        
+        # 添加注册和找回密码链接
+        col_reg, col_forget = st.columns(2)
+        with col_reg:
+            if st.button("📝 注册新用户", use_container_width=True):
+                st.session_state.show_register = True
+                
+        with col_forget:
+            if st.button("🔑 忘记密码?", use_container_width=True):
+                st.session_state.show_reset = True
+        
+        # 添加平台特色介绍
+        st.markdown("""
+        <div style='text-align: center; padding: 2rem 0; color: #666;'>
+            <h3>平台特色</h3>
+            <div style='display: flex; justify-content: space-around; margin-top: 1rem;'>
+                <div>
+                    <h4>🤖 AI驱动</h4>
+                    <p>智能分析与推荐</p>
+                </div>
+                <div>
+                    <h4>📊 数据可视化</h4>
+                    <p>直观展示学习数据</p>
+                </div>
+                <div>
+                    <h4>🎯 个性化学习</h4>
+                    <p>定制专属学习方案</p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 # 添加注销功能
 def logout():
@@ -1039,7 +1106,7 @@ def main():
         elif st.session_state.get('page') == "reset":
             reset_password_page()
         else:
-            login_page()
+            render_login_page()
     else:
         # 渲染侧边栏
         sidebar()
