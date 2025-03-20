@@ -2006,14 +2006,20 @@ class DeepSeekAI(BaseAI):
         self.name = "DeepSeek"
         
         load_dotenv()  # 确保加载环境变量
-        self.api_key = os.getenv('DEEPSEEK_API_KEY')
+        # 尝试从Streamlit Secrets获取API密钥
+        if "DEEPSEEK_API_KEY" in st.secrets:
+            self.api_key = st.secrets["DEEPSEEK_API_KEY"]
+        else:
+            # 回退到环境变量
+            self.api_key = os.getenv("DEEPSEEK_API_KEY")
+        
+        if not self.api_key:
+            st.error("DeepSeek API密钥未配置")
+            return
+            
         self.base_url = "https://api.deepseek.com/v1"
         self.model = os.getenv('DEEPSEEK_MODEL', 'deepseek-chat')
         
-        if not self.api_key:
-            st.error("DeepSeek API密钥未配置，请在.env文件中设置DEEPSEEK_API_KEY")
-            return
-            
         self.headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
@@ -4599,6 +4605,22 @@ def generate_diagnosis_report(student_name, subject, diagnosis_data, diagnosis_o
     report += "5. 保持良好的学习习惯，提高学习效率\n"
     
     return report
+
+# 从环境变量或Streamlit Secrets中读取API密钥
+def get_api_key(key_name):
+    # 首先尝试从Streamlit Secrets中读取
+    if key_name in st.secrets:
+        return st.secrets[key_name]
+    # 然后尝试从环境变量中读取
+    elif os.getenv(key_name):
+        return os.getenv(key_name)
+    else:
+        return None
+
+# 初始化DeepSeek API
+DEEPSEEK_API_KEY = get_api_key("DEEPSEEK_API_KEY")
+if not DEEPSEEK_API_KEY:
+    st.warning("DeepSeek API密钥未配置，请在Streamlit Secrets或.env文件中设置DEEPSEEK_API_KEY")
 
 if __name__ == "__main__":
     main() 
