@@ -274,6 +274,12 @@ def render_login_page():
             font-size: 0.9rem;
             color: #666;
         }
+        .app-title {
+            color: #1E88E5;
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
         </style>
     """, unsafe_allow_html=True)
     
@@ -285,8 +291,7 @@ def render_login_page():
         
         # 登录页面标题
         st.markdown('<div class="login-header">', unsafe_allow_html=True)
-        st.image("logo.png", width=100)  # 如果有logo的话
-        st.title("智慧学习空间")
+        st.markdown('<div class="app-title">智慧学习空间</div>', unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
         
         # 登录表单
@@ -342,9 +347,9 @@ def render_login_page():
         # 第三方登录按钮
         col1, col2, col3, col4 = st.columns(4)
         with col1:
-            st.button("🎓 校园认证", use_container_width=True)
+            st.button("🎓 校园", use_container_width=True)
         with col2:
-            st.button("📱 手机登录", use_container_width=True)
+            st.button("📱 手机", use_container_width=True)
         with col3:
             st.button("💳 一卡通", use_container_width=True)
         with col4:
