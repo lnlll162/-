@@ -252,32 +252,87 @@ class AuthConfig:
             return False, "系统错误"
 
 # 登录页面
-def login_page():
-    st.title("智慧学习空间数据大屏 - 登录")
+def render_login_page():
+    """渲染登录页面"""
+    st.markdown("""
+        <style>
+        .login-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background-color: white;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-form {
+            padding: 20px;
+        }
+        .stButton>button {
+            width: 100%;
+            margin-top: 20px;
+            background-color: #FF4B4B;
+            color: white;
+        }
+        </style>
+    """, unsafe_allow_html=True)
     
-    with st.form("login_form"):
-        username = st.text_input("用户名")
-        password = st.text_input("密码", type="password")
-        col1, col2 = st.columns(2)
-        submit = col1.form_submit_button("登录")
+    # 创建居中的登录容器
+    with st.container():
+        st.markdown('<div class="login-container">', unsafe_allow_html=True)
         
-        if submit:
-            auth_config = AuthConfig()
-            if auth_config.verify_user(username, password):
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.rerun()
-            else:
-                st.error("用户名或密码错误")
-    
-    # 添加注册和重置密码链接
-    col1, col2 = st.columns(2)
-    if col1.button("注册新用户"):
-        st.session_state.page = "register"
-        st.rerun()
-    if col2.button("忘记密码"):
-        st.session_state.page = "reset"
-        st.rerun()
+        # 登录页面标题
+        st.markdown('<div class="login-header">', unsafe_allow_html=True)
+        st.title("🎓 智慧学习空间")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # 登录表单
+        with st.form("login_form", clear_on_submit=True):
+            st.markdown('<div class="login-form">', unsafe_allow_html=True)
+            
+            # 用户名输入
+            username = st.text_input(
+                "用户名",
+                placeholder="请输入用户名",
+                help="输入您的用户名"
+            )
+            
+            # 密码输入
+            password = st.text_input(
+                "密码",
+                type="password",
+                placeholder="请输入密码",
+                help="输入您的密码"
+            )
+            
+            # 记住登录选项
+            remember = st.checkbox("记住登录", value=True)
+            
+            # 提交按钮
+            submit = st.form_submit_button("登 录")
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+            
+            if submit:
+                if username == "admin" and password == "admin":
+                    st.session_state.logged_in = True
+                    st.session_state.username = username
+                    st.success("登录成功！")
+                    st.rerun()
+                else:
+                    st.error("用户名或密码错误！")
+        
+        # 添加注册链接
+        col1, col2 = st.columns([1, 1])
+        with col1:
+            st.markdown('<div style="text-align: left"><a href="#">忘记密码？</a></div>', unsafe_allow_html=True)
+        with col2:
+            st.markdown('<div style="text-align: right"><a href="#">注册账号</a></div>', unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # 添加注销功能
 def logout():
@@ -1039,7 +1094,7 @@ def main():
         elif st.session_state.get('page') == "reset":
             reset_password_page()
         else:
-            login_page()
+            render_login_page()
     else:
         # 渲染侧边栏
         sidebar()
