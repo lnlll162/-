@@ -317,7 +317,8 @@ def render_login_page():
             st.markdown("</div>", unsafe_allow_html=True)
             
             if submit:
-                if username == "admin" and password == "admin":
+                auth_config = AuthConfig()
+                if auth_config.verify_user(username, password):
                     st.session_state.logged_in = True
                     st.session_state.username = username
                     st.success("登录成功！")
@@ -325,12 +326,14 @@ def render_login_page():
                 else:
                     st.error("用户名或密码错误！")
         
-        # 添加注册链接
-        col1, col2 = st.columns([1, 1])
-        with col1:
-            st.markdown('<div style="text-align: left"><a href="#">忘记密码？</a></div>', unsafe_allow_html=True)
-        with col2:
-            st.markdown('<div style="text-align: right"><a href="#">注册账号</a></div>', unsafe_allow_html=True)
+        # 添加注册和重置密码按钮
+        col1, col2 = st.columns(2)
+        if col1.button("注册新用户"):
+            st.session_state.page = "register"
+            st.rerun()
+        if col2.button("忘记密码"):
+            st.session_state.page = "reset"
+            st.rerun()
         
         st.markdown("</div>", unsafe_allow_html=True)
 
