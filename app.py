@@ -4741,7 +4741,11 @@ def render_register_page():
         password = st.text_input("密码", type="password", placeholder="请输入密码")
         confirm_password = st.text_input("确认密码", type="password", placeholder="请再次输入密码")
         
-        submitted = st.form_submit_button("注册")
+        col1, col2 = st.columns(2)
+        with col1:
+            submitted = st.form_submit_button("注册")
+        with col2:
+            back_to_login = st.form_submit_button("返回登录")
         
         if submitted:
             if not username or not password:
@@ -4752,12 +4756,12 @@ def render_register_page():
                 user_manager = UserManager()
                 if user_manager.register_user(username, password):
                     st.success("注册成功！请返回登录页面")
-                    # 添加返回登录页面的按钮
-                    if st.button("返回登录"):
-                        st.session_state.show_register = False
-                        st.experimental_rerun()
                 else:
                     st.error("用户名已存在，请选择其他用户名")
+        
+        if back_to_login:
+            st.session_state.show_register = False
+            st.rerun()
 
 def render_login_page():
     """渲染登录页面"""
@@ -4767,10 +4771,6 @@ def render_login_page():
     
     if st.session_state.show_register:
         render_register_page()
-        # 添加返回登录的按钮
-        if st.button("返回登录"):
-            st.session_state.show_register = False
-            st.experimental_rerun()
     else:
         col1, col2, col3 = st.columns([1, 2, 1])
         
@@ -4799,7 +4799,7 @@ def render_login_page():
                     else:
                         st.error("用户名或密码错误")
             
-            # 注册和找回密码按钮
+            # 注册和找回密码按钮放在表单外部
             col_reg, col_forget = st.columns(2)
             with col_reg:
                 if st.button("📝 注册新用户", use_container_width=True):
