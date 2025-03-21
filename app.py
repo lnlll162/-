@@ -2889,8 +2889,7 @@ def render_learning_behavior_analysis():
 
 def render_learning_diagnosis():
     """渲染学习诊断页面"""
-    st.subheader("学习诊断")
-    
+    st.subheader("📝 学习诊断")
     # 创建表单
     with st.form(key="diagnosis_form"):
         # 表单内容保持不变
@@ -3824,7 +3823,7 @@ def render_learning_tracker():
 
 def render_learning_behavior():
     """渲染学习行为分析页面"""
-    st.title("学习行为分析")
+    st.title("📊 学习行为分析")
     
     # 初始化学习行为数据
     if 'learning_behavior' not in st.session_state:
@@ -3840,7 +3839,7 @@ def render_learning_behavior():
     tab1, tab2, tab3 = st.tabs(["📊 行为概览", "🔍 详细分析", "💡 改进建议"])
     
     with tab1:
-        st.subheader("学习行为概览")
+        st.subheader("📊 行为概览")
         
         # 显示关键指标
         col1, col2, col3, col4 = st.columns(4)
@@ -3878,7 +3877,7 @@ def render_learning_behavior():
             )
         
         # 添加行为趋势图
-        st.subheader("学习行为趋势")
+        st.subheader("📈 学习行为趋势")
         
         # 生成示例数据
         dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
@@ -3910,7 +3909,7 @@ def render_learning_behavior():
         ))
         
         fig.update_layout(
-            title="学习行为趋势分析",
+            title="📈 学习行为趋势分析",
             xaxis_title="日期",
             yaxis_title="数值",
             hovermode='x unified'
@@ -3919,10 +3918,10 @@ def render_learning_behavior():
         st.plotly_chart(fig, use_container_width=True)
     
     with tab2:
-        st.subheader("详细行为分析")
+        st.subheader("🔍 详细行为分析")
         
         # 时间分布分析
-        st.write("##### 学习时间分布")
+        st.write("📊 学习时间分布")
         time_data = pd.DataFrame({
             'hour': range(24),
             'study_count': np.random.poisson(lam=5, size=24)
@@ -3937,7 +3936,7 @@ def render_learning_behavior():
         ])
         
         fig_time.update_layout(
-            title="每日学习时间分布",
+            title="📊 每日学习时间分布",
             xaxis_title="小时",
             yaxis_title="学习次数"
         )
@@ -3945,7 +3944,7 @@ def render_learning_behavior():
         st.plotly_chart(fig_time, use_container_width=True)
         
         # 学习行为模式分析
-        st.write("##### 学习行为模式")
+        st.write("📊 学习行为模式")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -3954,7 +3953,7 @@ def render_learning_behavior():
             values = [40, 25, 20, 15]
             
             fig_pie = go.Figure(data=[go.Pie(labels=labels, values=values)])
-            fig_pie.update_layout(title="学习方式分布")
+            fig_pie.update_layout(title="📊 学习方式分布")
             st.plotly_chart(fig_pie, use_container_width=True)
         
         with col2:
@@ -3968,11 +3967,11 @@ def render_learning_behavior():
                 fill='toself'
             ))
             
-            fig_radar.update_layout(title="知识点掌握情况")
+            fig_radar.update_layout(title="📊 知识点掌握情况")
             st.plotly_chart(fig_radar, use_container_width=True)
     
     with tab3:
-        st.subheader("学习改进建议")
+        st.subheader("💡 学习改进建议")
         
         # 生成AI建议
         if st.button("生成个性化建议"):
@@ -4008,7 +4007,7 @@ def render_learning_behavior():
                     st.error(f"生成建议时出错: {str(e)}")
         
         # 添加手动建议
-        st.write("##### 通用改进建议")
+        st.write("💡 通用改进建议")
         st.info("""
         1. 建议增加每日学习时长至3-4小时
         2. 可以尝试番茄工作法提高专注度
@@ -4019,7 +4018,7 @@ def render_learning_behavior():
 
 def render_learning_space():
     """渲染学习空间推荐页面"""
-    st.title("学习空间推荐")
+    st.title("🎯 学习空间推荐")
     
     # 添加AI推荐部分
     with st.expander("🤖 获取AI个性化空间推荐", expanded=True):
@@ -4306,13 +4305,13 @@ def render_learning_space():
 
 def render_settings():
     """渲染设置页面"""
-    st.title("系统设置")
+    st.title("⚙️ 系统设置")
     
     # 创建设置选项卡
     tab1, tab2, tab3 = st.tabs(["👤 账户设置", "🔑 API配置", "📊 使用统计"])
     
     with tab1:
-        st.subheader("账户设置")
+        st.subheader("👤 账户设置")
         
         # 个人信息设置
         with st.expander("个人信息", expanded=True):
@@ -4355,7 +4354,7 @@ def render_settings():
             )
     
     with tab2:
-        st.subheader("API配置")
+        st.subheader("🔑 API配置")
         
         # DeepSeek API设置
         with st.expander("DeepSeek API配置", expanded=True):
@@ -4398,7 +4397,7 @@ def render_settings():
             st.number_input("API请求超时时间（秒）", value=30)
     
     with tab3:
-        st.subheader("使用统计")
+        st.subheader("📊 使用统计")
         
         # 生成示例使用数据
         dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
@@ -4426,7 +4425,7 @@ def render_settings():
         ))
         
         fig.update_layout(
-            title="30天使用统计",
+            title="📈 30天使用统计",
             xaxis_title="日期",
             yaxis_title="次数",
             hovermode='x unified'
@@ -4820,8 +4819,111 @@ def main():
     if not st.session_state.logged_in:
         render_login_page()
     else:
-        # 显示主应用界面
         render_main_app()
+
+def render_main_app():
+    """渲染主应用界面"""
+    st.title("基于AIGC的智慧学习空间")
+    st.subheader("智能化学习空间分析与可视化平台")
+    
+    # 创建侧边栏菜单
+    menu_options = [
+        "🏠 首页",
+        "🎯 学习空间推荐",
+        "📊 学习行为分析",
+        "🤖 AI助手",
+        "📝 学习诊断",
+        "⚙️ 设置"
+    ]
+    
+    with st.sidebar:
+        st.markdown(f"### 👋 欢迎, {st.session_state.username}!")
+        selected_menu = st.selectbox("导航菜单", menu_options)
+        
+        # 添加退出按钮
+        if st.button("退出登录", use_container_width=True):
+            st.session_state.logged_in = False
+            st.session_state.username = None
+            st.rerun()
+    
+    # 根据选择的菜单项显示相应的内容
+    if selected_menu == "🏠 首页":
+        render_welcome_page()
+    elif selected_menu == "🎯 学习空间推荐":
+        render_learning_space_recommendation()
+    elif selected_menu == "📊 学习行为分析":
+        render_learning_behavior_analysis()
+    elif selected_menu == "🤖 AI助手":
+        render_ai_assistant()
+    elif selected_menu == "📝 学习诊断":
+        render_learning_diagnosis()
+    elif selected_menu == "⚙️ 设置":
+        render_settings()
+
+def render_welcome_page():
+    """渲染欢迎页面"""
+    # 欢迎横幅
+    st.markdown(f"""
+    <div style='background: linear-gradient(90deg, #1E88E5 0%, #64B5F6 100%); 
+                padding: 2rem; border-radius: 10px; margin-bottom: 2rem;
+                color: white; text-align: center;'>
+        <h2>👋 欢迎回来, {st.session_state.username}!</h2>
+        <p>今天是 {datetime.now().strftime('%Y年%m月%d日 %A')}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 快速访问卡片
+    st.markdown("### 🚀 快速访问")
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown("""
+        <div style='background: rgba(30, 136, 229, 0.1); padding: 1rem; 
+                    border-radius: 10px; text-align: center;'>
+            <h4>📚 学习空间</h4>
+            <p>探索多样化学习环境</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    with col2:
+        st.markdown("""
+        <div style='background: rgba(30, 136, 229, 0.1); padding: 1rem; 
+                    border-radius: 10px; text-align: center;'>
+            <h4>🤖 AI助手</h4>
+            <p>智能学习伙伴</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    with col3:
+        st.markdown("""
+        <div style='background: rgba(30, 136, 229, 0.1); padding: 1rem; 
+                    border-radius: 10px; text-align: center;'>
+            <h4>📊 数据分析</h4>
+            <p>学习行为洞察</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+    with col4:
+        st.markdown("""
+        <div style='background: rgba(30, 136, 229, 0.1); padding: 1rem; 
+                    border-radius: 10px; text-align: center;'>
+            <h4>🎯 学习诊断</h4>
+            <p>个性化学习建议</p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # 学习数据概览
+    st.markdown("### 📈 今日学习概览")
+    metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+    
+    with metric_col1:
+        st.metric("学习时长", "2.5小时", "↑ 0.5小时")
+    with metric_col2:
+        st.metric("完成任务", "8/10", "80%")
+    with metric_col3:
+        st.metric("知识点", "12个", "↑ 3个")
+    with metric_col4:
+        st.metric("学习效率", "85%", "↑ 5%")
 
 if __name__ == "__main__":
     main() 
