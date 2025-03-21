@@ -252,32 +252,119 @@ class AuthConfig:
             return False, "系统错误"
 
 # 登录页面
-def login_page():
-    st.title("智慧学习空间数据大屏 - 登录")
+def render_login_page():
+    """渲染登录页面"""
+    st.markdown("""
+        <style>
+        .login-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background: white;
+        }
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .login-footer {
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        </style>
+    """, unsafe_allow_html=True)
     
-    with st.form("login_form"):
-        username = st.text_input("用户名")
-        password = st.text_input("密码", type="password")
-        col1, col2 = st.columns(2)
-        submit = col1.form_submit_button("登录")
+    # 创建居中的登录容器
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.markdown('<div class="login-container">', unsafe_allow_html=True)
         
+        # 登录页面标题
+        st.markdown('<div class="login-header">', unsafe_allow_html=True)
+        st.image("logo.png", width=100)  # 如果有logo的话
+        st.title("智慧学习空间")
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # 登录表单
+        with st.form("login_form"):
+            # 用户名输入
+            username = st.text_input(
+                "用户名",
+                placeholder="请输入用户名",
+                help="输入您的用户名或学号"
+            )
+            
+            # 密码输入
+            password = st.text_input(
+                "密码", 
+                type="password",
+                placeholder="请输入密码",
+                help="输入您的登录密码"
+            )
+            
+            # 记住我选项
+            col1, col2 = st.columns(2)
+            with col1:
+                remember = st.checkbox("记住我", value=True)
+            with col2:
+                st.markdown('<div style="text-align: right;"><a href="#">忘记密码？</a></div>', 
+                          unsafe_allow_html=True)
+            
+            # 登录按钮
+            submit = st.form_submit_button(
+                "登 录",
+                use_container_width=True,
+                type="primary"
+            )
+        
+        # 登录处理
         if submit:
-            auth_config = AuthConfig()
-            if auth_config.verify_user(username, password):
-                st.session_state.logged_in = True
-                st.session_state.username = username
-                st.rerun()
+            if username and password:
+                # 这里添加实际的登录验证逻辑
+                if username == "admin" and password == "admin":  # 示例验证
+                    st.session_state.logged_in = True
+                    st.session_state.username = username
+                    st.success("登录成功！正在跳转...")
+                    st.rerun()
+                else:
+                    st.error("用户名或密码错误！")
             else:
-                st.error("用户名或密码错误")
-    
-    # 添加注册和重置密码链接
-    col1, col2 = st.columns(2)
-    if col1.button("注册新用户"):
-        st.session_state.page = "register"
-        st.rerun()
-    if col2.button("忘记密码"):
-        st.session_state.page = "reset"
-        st.rerun()
+                st.warning("请输入用户名和密码！")
+        
+        # 其他登录选项
+        st.markdown('<div class="login-footer">', unsafe_allow_html=True)
+        st.markdown("其他登录方式", help="选择其他方式登录")
+        
+        # 第三方登录按钮
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.button("🎓 校园认证", use_container_width=True)
+        with col2:
+            st.button("📱 手机登录", use_container_width=True)
+        with col3:
+            st.button("💳 一卡通", use_container_width=True)
+        with col4:
+            st.button("👥 访客", use_container_width=True)
+        
+        # 注册提示
+        st.markdown("""
+            <div style="text-align: center; margin-top: 1rem;">
+                还没有账号？<a href="#">立即注册</a>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # 页脚信息
+        st.markdown("""
+            <div style="text-align: center; margin-top: 2rem; color: #666; font-size: 0.8rem;">
+                登录即表示您同意我们的<a href="#">服务条款</a>和<a href="#">隐私政策</a>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # 添加注销功能
 def logout():
@@ -1039,7 +1126,7 @@ def main():
         elif st.session_state.get('page') == "reset":
             reset_password_page()
         else:
-            login_page()
+            render_login_page()
     else:
         # 渲染侧边栏
         sidebar()
