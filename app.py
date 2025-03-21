@@ -252,135 +252,32 @@ class AuthConfig:
             return False, "系统错误"
 
 # 登录页面
-def render_login_page():
-    """渲染登录页面"""
-    st.markdown("""
-        <style>
-        .login-container {
-            max-width: 400px;
-            margin: 0 auto;
-            padding: 2rem;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            background: white;
-        }
-        .login-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        .login-footer {
-            text-align: center;
-            margin-top: 1rem;
-            font-size: 0.9rem;
-            color: #666;
-        }
-        .app-title {
-            color: #1E88E5;
-            font-size: 2rem;
-            font-weight: bold;
-            margin-bottom: 1rem;
-        }
-        .login-btn {
-            background-color: #ff4b4b;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 0.5rem;
-            width: 100%;
-            cursor: pointer;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+def login_page():
+    st.title("智慧学习空间数据大屏 - 登录")
     
-    # 创建居中的登录容器
-    col1, col2, col3 = st.columns([1, 2, 1])
+    with st.form("login_form"):
+        username = st.text_input("用户名")
+        password = st.text_input("密码", type="password")
+        col1, col2 = st.columns(2)
+        submit = col1.form_submit_button("登录")
+        
+        if submit:
+            auth_config = AuthConfig()
+            if auth_config.verify_user(username, password):
+                st.session_state.logged_in = True
+                st.session_state.username = username
+                st.rerun()
+            else:
+                st.error("用户名或密码错误")
     
-    with col2:
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
-        
-        # 登录页面标题
-        st.markdown('<div class="login-header">', unsafe_allow_html=True)
-        st.markdown('<div class="app-title">智慧学习空间</div>', unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-        # 登录表单
-        with st.form(key="login_form"):
-            # 用户名输入
-            username = st.text_input(
-                "用户名",
-                placeholder="请输入用户名",
-                help="输入您的用户名或学号"
-            )
-            
-            # 密码输入
-            password = st.text_input(
-                "密码", 
-                type="password",
-                placeholder="请输入密码",
-                help="输入您的登录密码"
-            )
-            
-            # 记住我选项
-            col1, col2 = st.columns(2)
-            with col1:
-                remember = st.checkbox("记住我", value=True)
-            with col2:
-                st.markdown('<div style="text-align: right;"><a href="#">忘记密码？</a></div>', 
-                          unsafe_allow_html=True)
-            
-            # 登录按钮
-            submitted = st.form_submit_button(
-                "登 录",
-                use_container_width=True,
-                type="primary"
-            )
-            
-            # 登录处理
-            if submitted:
-                if username and password:
-                    # 简单的登录验证逻辑
-                    if (username == "1233" and password == "1233") or \
-                       (username == "admin" and password == "admin"):
-                        st.session_state["logged_in"] = True
-                        st.session_state["username"] = username
-                        st.success("登录成功！")
-                        time.sleep(1)  # 给用户一点时间看到成功消息
-                        st.rerun()
-                    else:
-                        st.error("用户名或密码错误！")
-                else:
-                    st.warning("请输入用户名和密码！")
-        
-        # 其他登录选项
-        st.markdown('<div class="login-footer">', unsafe_allow_html=True)
-        st.markdown("其他登录方式", help="选择其他方式登录")
-        
-        # 第三方登录按钮
-        col1, col2, col3, col4 = st.columns(4)
-        with col1:
-            st.button("🎓 校园", use_container_width=True)
-        with col2:
-            st.button("📱 手机", use_container_width=True)
-        with col3:
-            st.button("💳 一卡通", use_container_width=True)
-        with col4:
-            st.button("👥 访客", use_container_width=True)
-        
-        # 注册提示
-        st.markdown("""
-            <div style="text-align: center; margin-top: 1rem;">
-                还没有账号？<a href="#">立即注册</a>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        # 页脚信息
-        st.markdown("""
-            <div style="text-align: center; margin-top: 2rem; color: #666; font-size: 0.8rem;">
-                登录即表示您同意我们的<a href="#">服务条款</a>和<a href="#">隐私政策</a>
-            </div>
-        """, unsafe_allow_html=True)
-        
-        st.markdown('</div>', unsafe_allow_html=True)
+    # 添加注册和重置密码链接
+    col1, col2 = st.columns(2)
+    if col1.button("注册新用户"):
+        st.session_state.page = "register"
+        st.rerun()
+    if col2.button("忘记密码"):
+        st.session_state.page = "reset"
+        st.rerun()
 
 # 添加注销功能
 def logout():
@@ -1122,15 +1019,54 @@ class LearningSpaceModel:
 
 # 修改主应用入口
 def main():
+    """主函数"""
     # 初始化session state
-    if "logged_in" not in st.session_state:
-        st.session_state["logged_in"] = False
+    if 'language' not in st.session_state:
+        st.session_state.language = 'zh'
+    if 'sidebar_option' not in st.session_state:
+        st.session_state.sidebar_option = 'dashboard'
+    if 'logged_in' not in st.session_state:
+        st.session_state.logged_in = False
+    
+    # 应用主题
+    theme = st.session_state.get('theme', 'Light')
+    apply_theme(theme)
     
     # 根据登录状态显示不同内容
-    if st.session_state["logged_in"]:
-        render_main_app()  # 显示主应用内容
+    if not st.session_state.logged_in:
+        if st.session_state.get('page') == "register":
+            register_page()
+        elif st.session_state.get('page') == "reset":
+            reset_password_page()
+        else:
+            login_page()
     else:
-        render_login_page()  # 显示登录页面
+        # 渲染侧边栏
+        sidebar()
+        
+        # 根据侧边栏选项渲染不同页面
+        if st.session_state.sidebar_option == "dashboard":
+            render_dashboard()
+        elif st.session_state.sidebar_option == "analysis":
+            render_analysis()
+        elif st.session_state.sidebar_option == "ai_assistant":
+            render_ai_assistant()
+        elif st.session_state.sidebar_option == "learning_space":
+            render_learning_space()
+        elif st.session_state.sidebar_option == "learning_path":
+            render_learning_path()
+        elif st.session_state.sidebar_option == "learning_behavior":
+            render_learning_behavior()
+        elif st.session_state.sidebar_option == "learning_diagnosis":
+            render_learning_diagnosis()
+        elif st.session_state.sidebar_option == "learning_tracker":
+            render_learning_tracker()
+        elif st.session_state.sidebar_option == "help":
+            render_help_page()
+        elif st.session_state.sidebar_option == "settings":
+            render_settings()
+        elif st.session_state.sidebar_option == "logout":
+            handle_logout()
 
 # 主题设置
 def apply_theme(theme):
