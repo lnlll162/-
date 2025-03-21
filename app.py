@@ -280,6 +280,15 @@ def render_login_page():
             font-weight: bold;
             margin-bottom: 1rem;
         }
+        .login-btn {
+            background-color: #ff4b4b;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 0.5rem;
+            width: 100%;
+            cursor: pointer;
+        }
         </style>
     """, unsafe_allow_html=True)
     
@@ -295,7 +304,7 @@ def render_login_page():
         st.markdown("</div>", unsafe_allow_html=True)
         
         # 登录表单
-        with st.form("login_form"):
+        with st.form(key="login_form"):
             # 用户名输入
             username = st.text_input(
                 "用户名",
@@ -320,25 +329,27 @@ def render_login_page():
                           unsafe_allow_html=True)
             
             # 登录按钮
-            submit = st.form_submit_button(
+            submitted = st.form_submit_button(
                 "登 录",
                 use_container_width=True,
                 type="primary"
             )
-        
-        # 登录处理
-        if submit:
-            if username and password:
-                # 这里添加实际的登录验证逻辑
-                if username == "admin" and password == "admin":  # 示例验证
-                    st.session_state.logged_in = True
-                    st.session_state.username = username
-                    st.success("登录成功！正在跳转...")
-                    st.rerun()
+            
+            # 登录处理
+            if submitted:
+                if username and password:
+                    # 简单的登录验证逻辑
+                    if (username == "1233" and password == "1233") or \
+                       (username == "admin" and password == "admin"):
+                        st.session_state["logged_in"] = True
+                        st.session_state["username"] = username
+                        st.success("登录成功！")
+                        time.sleep(1)  # 给用户一点时间看到成功消息
+                        st.rerun()
+                    else:
+                        st.error("用户名或密码错误！")
                 else:
-                    st.error("用户名或密码错误！")
-            else:
-                st.warning("请输入用户名和密码！")
+                    st.warning("请输入用户名和密码！")
         
         # 其他登录选项
         st.markdown('<div class="login-footer">', unsafe_allow_html=True)
@@ -1111,54 +1122,15 @@ class LearningSpaceModel:
 
 # 修改主应用入口
 def main():
-    """主函数"""
     # 初始化session state
-    if 'language' not in st.session_state:
-        st.session_state.language = 'zh'
-    if 'sidebar_option' not in st.session_state:
-        st.session_state.sidebar_option = 'dashboard'
-    if 'logged_in' not in st.session_state:
-        st.session_state.logged_in = False
-    
-    # 应用主题
-    theme = st.session_state.get('theme', 'Light')
-    apply_theme(theme)
+    if "logged_in" not in st.session_state:
+        st.session_state["logged_in"] = False
     
     # 根据登录状态显示不同内容
-    if not st.session_state.logged_in:
-        if st.session_state.get('page') == "register":
-            register_page()
-        elif st.session_state.get('page') == "reset":
-            reset_password_page()
-        else:
-            render_login_page()
+    if st.session_state["logged_in"]:
+        render_main_app()  # 显示主应用内容
     else:
-        # 渲染侧边栏
-        sidebar()
-        
-        # 根据侧边栏选项渲染不同页面
-        if st.session_state.sidebar_option == "dashboard":
-            render_dashboard()
-        elif st.session_state.sidebar_option == "analysis":
-            render_analysis()
-        elif st.session_state.sidebar_option == "ai_assistant":
-            render_ai_assistant()
-        elif st.session_state.sidebar_option == "learning_space":
-            render_learning_space()
-        elif st.session_state.sidebar_option == "learning_path":
-            render_learning_path()
-        elif st.session_state.sidebar_option == "learning_behavior":
-            render_learning_behavior()
-        elif st.session_state.sidebar_option == "learning_diagnosis":
-            render_learning_diagnosis()
-        elif st.session_state.sidebar_option == "learning_tracker":
-            render_learning_tracker()
-        elif st.session_state.sidebar_option == "help":
-            render_help_page()
-        elif st.session_state.sidebar_option == "settings":
-            render_settings()
-        elif st.session_state.sidebar_option == "logout":
-            handle_logout()
+        render_login_page()  # 显示登录页面
 
 # 主题设置
 def apply_theme(theme):
