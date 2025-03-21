@@ -180,24 +180,31 @@ def log_activity(user_id, action, details=None):
 class AuthConfig:
     def __init__(self):
         self.users_file = "users.json"
-        if not os.path.exists(self.users_file):
-            with open(self.users_file, "w") as f:
-                json.dump({}, f)
+        self.init_users()
+        self.max_login_attempts = 5
+        self.lockout_time = 30  # 锁定时间（分钟）
     
-    def verify_login(self, username: str, password: str) -> bool:
-        """验证用户登录"""
+    def init_users(self):
+        # 如果用户文件不存在，创建默认用户
+        if not os.path.exists(self.users_file):
+            default_users = {
+                "admin": self.hash_password("admin123"),
+                "user": self.hash_password("user123")
+            }
+            with open(self.users_file, "w") as f:
+                json.dump(default_users, f)
+    
+    @staticmethod
+    def hash_password(password):
+        return hashlib.sha256(password.encode()).hexdigest()
+    
+    def verify_user(self, username, password):
         try:
             with open(self.users_file, "r") as f:
                 users = json.load(f)
-            if username in users and users[username] == self.hash_password(password):
-                return True
-            return False
+            return username in users and users[username] == self.hash_password(password)
         except:
             return False
-    
-    def hash_password(self, password: str) -> str:
-        """密码加密"""
-        return hashlib.sha256(password.encode()).hexdigest()
     
     def add_user(self, username, password):
         """添加新用户"""
@@ -244,107 +251,33 @@ class AuthConfig:
         except:
             return False, "系统错误"
 
-# 添加验证登录的函数
-def verify_login(username: str, password: str) -> bool:
-    """验证用户登录信息"""
-    auth = AuthConfig()
-    return auth.verify_login(username, password)
-
 # 登录页面
-def render_login_page():
-    """渲染优化后的登录页面"""
+def login_page():
+    st.title("智慧学习空间数据大屏 - 登录")
     
-    # 页面布局优化
-    col1, col2, col3 = st.columns([1, 2, 1])
+    with st.form("login_form"):
+        username = st.text_input("用户名")
+        password = st.text_input("密码", type="password")
+        col1, col2 = st.columns(2)
+        submit = col1.form_submit_button("登录")
+        
+        if submit:
+            auth_config = AuthConfig()
+            if auth_config.verify_user(username, password):
+                st.session_state.logged_in = True
+                st.session_state.username = username
+                st.rerun()
+            else:
+                st.error("用户名或密码错误")
     
-    with col2:
-        # 添加Logo和欢迎信息
-        st.markdown("""
-        <div style='text-align: center; padding: 2rem 0;'>
-            <h1 style='color: #1E88E5;'>🎓 智慧学习空间</h1>
-            <p style='color: #666; font-size: 1.2rem;'>欢迎来到基于AIGC的智能学习平台</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # 登录表单美化
-        with st.form("login_form", clear_on_submit=True):
-            st.markdown("""
-            <style>
-                div[data-testid="stForm"] {
-                    background: rgba(255, 255, 255, 0.1);
-                    padding: 2rem;
-                    border-radius: 10px;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                }
-                div.stButton > button {
-                    width: 100%;
-                    background-color: #1E88E5;
-                    color: white;
-                    font-weight: bold;
-                    padding: 0.5rem 0;
-                    border: none;
-                    border-radius: 5px;
-                    margin-top: 1rem;
-                }
-                div.stButton > button:hover {
-                    background-color: #1976D2;
-                    transition: all 0.3s ease;
-                }
-            </style>
-            """, unsafe_allow_html=True)
-            
-            username = st.text_input("用户名", placeholder="请输入用户名", 
-                                   help="输入您的用户名进行登录")
-            
-            password = st.text_input("密码", type="password", placeholder="请输入密码",
-                                   help="输入您的账户密码")
-            
-            # 记住我选项
-            remember_me = st.checkbox("记住我", value=False)
-            
-            submitted = st.form_submit_button("登 录")
-            
-            if submitted:
-                if verify_login(username, password):
-                    # 更新session状态
-                    st.session_state.logged_in = True
-                    st.session_state.username = username
-                    st.success("登录成功！")
-                    # 使用 st.rerun() 替代 st.experimental_rerun()
-                    st.rerun()
-                else:
-                    st.error("用户名或密码错误，请重试")
-        
-        # 添加注册和找回密码链接
-        col_reg, col_forget = st.columns(2)
-        with col_reg:
-            if st.button("📝 注册新用户", use_container_width=True):
-                st.session_state.show_register = True
-                
-        with col_forget:
-            if st.button("🔑 忘记密码?", use_container_width=True):
-                st.session_state.show_reset = True
-        
-        # 添加平台特色介绍
-        st.markdown("""
-        <div style='text-align: center; padding: 2rem 0; color: #666;'>
-            <h3>平台特色</h3>
-            <div style='display: flex; justify-content: space-around; margin-top: 1rem;'>
-                <div>
-                    <h4>🤖 AI驱动</h4>
-                    <p>智能分析与推荐</p>
-                </div>
-                <div>
-                    <h4>📊 数据可视化</h4>
-                    <p>直观展示学习数据</p>
-                </div>
-                <div>
-                    <h4>🎯 个性化学习</h4>
-                    <p>定制专属学习方案</p>
-                </div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+    # 添加注册和重置密码链接
+    col1, col2 = st.columns(2)
+    if col1.button("注册新用户"):
+        st.session_state.page = "register"
+        st.rerun()
+    if col2.button("忘记密码"):
+        st.session_state.page = "reset"
+        st.rerun()
 
 # 添加注销功能
 def logout():
@@ -1099,9 +1032,14 @@ def main():
     theme = st.session_state.get('theme', 'Light')
     apply_theme(theme)
     
-    # 检查登录状态
+    # 根据登录状态显示不同内容
     if not st.session_state.logged_in:
-        render_login_page()
+        if st.session_state.get('page') == "register":
+            register_page()
+        elif st.session_state.get('page') == "reset":
+            reset_password_page()
+        else:
+            login_page()
     else:
         # 渲染侧边栏
         sidebar()
@@ -2229,81 +2167,92 @@ class ErnieAI(BaseAI):
 
 # 在render_ai_assistant函数中添加模型选择
 def render_ai_assistant():
-    """渲染AI助手页面"""
-    st.subheader("🤖 AI助手")
+    """渲染AI助手界面"""
+    st.subheader("AI智能助手")
     
-    # 初始化聊天历史
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+    # 选择AI模型
+    ai_models = {
+        "DeepSeek": DeepSeekAI,
+        "Kimi": KimiAI,
+        "文心一言": ErnieAI,
+        "豆包": DouBaoAI
+    }
     
-    # 创建AI模型选择
-    ai_model = st.selectbox(
+    selected_model = st.selectbox(
         "选择AI模型",
-        ["DeepSeek", "豆包", "Kimi"],
-        index=0
+        list(ai_models.keys()),
+        index=0,
+        key="selected_ai_model"
     )
-    
-    # 聊天界面
-    st.markdown("### 💬 智能对话")
-    
-    # 显示聊天历史
-    for message in st.session_state.chat_history:
-        role = message["role"]
-        content = message["content"]
+
+    # 初始化会话状态
+    if 'ai_messages' not in st.session_state:
+        st.session_state.ai_messages = []
         
-        if role == "user":
-            st.markdown(f"""
-            <div style='background-color: #E3F2FD; padding: 10px; border-radius: 10px; margin: 5px 0;'>
-                <strong>你:</strong> {content}
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.markdown(f"""
-            <div style='background-color: #F5F5F5; padding: 10px; border-radius: 10px; margin: 5px 0;'>
-                <strong>AI助手:</strong> {content}
-            </div>
-            """, unsafe_allow_html=True)
+    # 初始化当前选择的AI模型实例
+    try:
+        ai_instance = ai_models[selected_model]()
+    except Exception as e:
+        st.error(f"初始化{selected_model}失败: {str(e)}")
+        return
+
+    # 显示对应模型的欢迎语
+    welcome_messages = {
+        "DeepSeek": "您好！我是基于DeepSeek的智能学习助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？",
+        "Kimi": "您好！我是基于Kimi的智能学习助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？",
+        "文心一言": "您好！我是基于文心一言的智能学习助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？",
+        "豆包": "您好！我是基于豆包的智能学习助手。我可以帮您分析学习数据、提供学习建议或回答教育相关问题。请问有什么可以帮助您的吗？"
+    }
     
-    # 用户输入
-    with st.form("chat_form", clear_on_submit=True):
-        user_input = st.text_area("输入你的问题", height=100)
-        col1, col2 = st.columns([1, 5])
-        with col1:
-            submitted = st.form_submit_button("发送")
-        with col2:
-            clear_history = st.form_submit_button("清空历史")
-    
-    if submitted and user_input:
-        # 添加用户消息到历史记录
-        st.session_state.chat_history.append({
-            "role": "user",
-            "content": user_input
+    if not st.session_state.ai_messages:
+        st.session_state.ai_messages.append({
+            "role": "assistant",
+            "content": welcome_messages[selected_model]
         })
-        
-        try:
-            # 根据选择的模型生成回复
-            if ai_model == "DeepSeek":
-                response = generate_deepseek_response(user_input)
-            elif ai_model == "豆包":
-                response = generate_doubao_response(user_input)
-            else:
-                response = generate_kimi_response(user_input)
-            
-            # 添加AI回复到历史记录
-            st.session_state.chat_history.append({
-                "role": "assistant",
-                "content": response
-            })
-            
-            # 刷新页面显示新消息
-            st.rerun()
-            
-        except Exception as e:
-            st.error(f"生成回复时出现错误: {str(e)}")
     
-    if clear_history:
-        st.session_state.chat_history = []
-        st.rerun()
+    # 显示对话历史
+    for message in st.session_state.ai_messages:
+        if message["role"] == "user":
+            st.write(f"您: {message['content']}")
+        else:
+            st.write(f"AI助手({selected_model}): {message['content']}")
+    
+    # 用户输入和按钮
+    with st.form(key="chat_form"):
+        user_input = st.text_area("请输入您的问题:", key="chat_input")
+        col1, col2 = st.columns([1, 5])
+        
+        with col1:
+            submit = st.form_submit_button("发送")
+        with col2:
+            clear = st.form_submit_button("清空对话")
+
+        if submit and user_input:
+            # 添加用户消息到历史记录
+            st.session_state.ai_messages.append({"role": "user", "content": user_input})
+            
+            # 调用API获取响应
+            with st.spinner("AI思考中..."):
+                response = ai_instance.generate_response(st.session_state.ai_messages)
+                
+                if "error" not in response:
+                    if "choices" in response and len(response["choices"]) > 0:
+                        ai_message = response["choices"][0]["message"]["content"]
+                        st.session_state.ai_messages.append({"role": "assistant", "content": ai_message})
+                    else:
+                        st.error("AI响应格式错误")
+                else:
+                    st.error(f"生成回复时出错: {response['error']}")
+            
+            st.rerun()
+
+        if clear:
+            st.session_state.ai_messages = []
+            st.session_state.ai_messages.append({
+                "role": "assistant",
+                "content": welcome_messages[selected_model]
+            })
+            st.rerun()
 
 # 添加学习路径推荐功能
 
@@ -2546,360 +2495,462 @@ def render_learning_behavior_analysis():
     """渲染学习行为分析页面"""
     st.subheader("学习行为分析")
     
-    # 初始化学习行为数据
-    if 'learning_behavior' not in st.session_state:
-        st.session_state.learning_behavior = {
-            'study_time': [],  # 学习时长记录
-            'focus_rate': [],  # 专注度记录
-            'completion_rate': [],  # 任务完成率
-            'interaction_count': [],  # 互动次数
-            'dates': []  # 对应日期
-        }
-    
     # 创建选项卡
-    tab1, tab2, tab3 = st.tabs(["📊 行为概览", "🔍 详细分析", "💡 改进建议"])
+    behavior_tabs = st.tabs(["📊 行为概览", "🔍 详细分析", "💡 改进建议"])
     
-    with tab1:
-        st.subheader("📊 行为概览")
+    # 添加AI分析部分
+    with st.expander("🤖 获取AI个性化学习行为分析", expanded=True):
+        st.write("请填写以下信息，AI将为您提供深度的学习行为分析")
+        
+        # 创建表单收集学习行为数据
+        with st.form("learning_behavior_form"):
+            # 基本学习信息
+            col1, col2 = st.columns(2)
+            with col1:
+                study_time = st.number_input(
+                    "平均每日学习时长（小时）",
+                    min_value=0.0,
+                    max_value=24.0,
+                    value=2.5,
+                    step=0.5
+                )
+                attention_rate = st.slider(
+                    "平均专注度",
+                    min_value=0,
+                    max_value=100,
+                    value=85,
+                    format="%d%%"
+                )
+            
+            with col2:
+                task_completion = st.slider(
+                    "任务完成率",
+                    min_value=0,
+                    max_value=100,
+                    value=78,
+                    format="%d%%"
+                )
+                knowledge_mastery = st.slider(
+                    "知识点掌握度",
+                    min_value=0,
+                    max_value=100,
+                    value=82,
+                    format="%d%%"
+                )
+            
+            # 学习习惯
+            st.write("#### 学习习惯评估")
+            habits_col1, habits_col2 = st.columns(2)
+            
+            with habits_col1:
+                planning = st.select_slider(
+                    "学习计划性",
+                    options=["很差", "较差", "一般", "良好", "优秀"],
+                    value="良好"
+                )
+                note_taking = st.select_slider(
+                    "笔记记录习惯",
+                    options=["很差", "较差", "一般", "良好", "优秀"],
+                    value="良好"
+                )
+            
+            with habits_col2:
+                review_frequency = st.select_slider(
+                    "复习频率",
+                    options=["很少", "偶尔", "一般", "经常", "频繁"],
+                    value="经常"
+                )
+                self_reflection = st.select_slider(
+                    "自我反思程度",
+                    options=["很少", "偶尔", "一般", "经常", "频繁"],
+                    value="一般"
+                )
+            
+            # 学习困难
+            st.write("#### 学习困难")
+            difficulties = st.multiselect(
+                "目前遇到的主要学习困难（可多选）",
+                ["注意力不集中", "学习动力不足", "时间管理差", "记忆效果差", 
+                 "理解困难", "知识运用难", "学习方法不当", "其他"],
+                default=["注意力不集中", "时间管理差"]
+            )
+            
+            # 学习目标达成情况
+            st.write("#### 目标达成")
+            goal_achievement = st.text_area(
+                "描述您的学习目标达成情况",
+                placeholder="例如：完成了80%的计划任务，但是深度学习部分还需要加强..."
+            )
+            
+            analyze_button = st.form_submit_button("开始分析")
+        
+        if analyze_button:
+            with st.spinner("AI正在深入分析您的学习行为..."):
+                # 构建分析提示
+                prompt = f"""
+                请对以下学习行为数据进行全面分析，并提供改进建议：
+
+                基本学习数据：
+                - 日均学习时长：{study_time}小时
+                - 平均专注度：{attention_rate}%
+                - 任务完成率：{task_completion}%
+                - 知识掌握度：{knowledge_mastery}%
+
+                学习习惯评估：
+                - 计划性：{planning}
+                - 笔记习惯：{note_taking}
+                - 复习频率：{review_frequency}
+                - 自我反思：{self_reflection}
+
+                当前学习困难：{', '.join(difficulties)}
+
+                目标达成情况：{goal_achievement}
+
+                请提供：
+                1. 学习行为综合评估
+                2. 存在的主要问题分析
+                3. 学习效率提升建议
+                4. 针对性的改进策略
+                5. 可行的行动计划
+                
+                分析要具体且有建设性，注重实用性和可操作性。
+                """
+                
+                # 调用AI进行分析
+                ai = DouBaoAI()
+                messages = [
+                    {"role": "system", "content": "你是一个专业的学习行为分析专家，擅长诊断学习问题并提供个性化的改进建议。"},
+                    {"role": "user", "content": prompt}
+                ]
+                
+                response = ai.generate_response(messages)
+                
+                if "error" in response:
+                    st.error(f"生成分析报告时出现错误: {response['error']}")
+                else:
+                    try:
+                        analysis = response["choices"][0]["message"]["content"]
+                        
+                        # 显示分析结果
+                        st.success("✨ AI已完成学习行为分析")
+                        
+                        # 使用列布局展示分析内容
+                        report_col1, report_col2 = st.columns([2, 1])
+                        
+                        with report_col1:
+                            st.markdown(analysis)
+                        
+                        with report_col2:
+                            st.info("""
+                            💡 **温馨提示**
+                            
+                            - 建议定期进行学习行为分析
+                            - 根据分析结果调整学习策略
+                            - 持续跟踪改进效果
+                            - 建立良好的学习反馈循环
+                            """)
+                            
+                            # 添加下载报告按钮
+                            st.download_button(
+                                "📥 下载分析报告",
+                                analysis,
+                                file_name="learning_behavior_analysis.txt",
+                                mime="text/plain"
+                            )
+                    
+                    except (KeyError, IndexError):
+                        st.error("处理AI响应时出现错误，请稍后再试。")
+    
+    # 行为概览选项卡
+    with behavior_tabs[0]:
+        st.write("### 学习行为概览")
         
         # 显示关键指标
-        col1, col2, col3, col4 = st.columns(4)
+        metrics_cols = st.columns(4)
+        with metrics_cols[0]:
+            st.metric("平均学习时长", "2.5小时/天", "↑ 0.5小时")
+        with metrics_cols[1]:
+            st.metric("平均专注度", "85%", "↑ 5%")
+        with metrics_cols[2]:
+            st.metric("任务完成率", "78%", "↓ -2%")
+        with metrics_cols[3]:
+            st.metric("知识点掌握度", "82%", "↑ 3%")
         
-        with col1:
-            st.metric(
-                label="平均学习时长",
-                value="2.5小时/天",
-                delta="0.5小时",
-                delta_color="normal"
-            )
-        
-        with col2:
-            st.metric(
-                label="平均专注度",
-                value="85%",
-                delta="5%",
-                delta_color="normal"
-            )
-        
-        with col3:
-            st.metric(
-                label="任务完成率",
-                value="78%",
-                delta="-2%",
-                delta_color="inverse"
-            )
-        
-        with col4:
-            st.metric(
-                label="知识点掌握度",
-                value="82%",
-                delta="3%",
-                delta_color="normal"
-            )
-        
-        # 添加行为趋势图
-        st.subheader("📈 学习行为趋势")
+        # 学习行为趋势图
+        st.write("### 学习行为趋势")
         
         # 生成示例数据
-        dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
-        data = pd.DataFrame({
+        dates = pd.date_range(start='2023-02-19', end='2023-03-19', freq='D')
+        study_hours = np.random.normal(2.5, 0.5, size=len(dates))
+        attention_levels = np.random.normal(85, 5, size=len(dates))
+        
+        # 创建DataFrame
+        df = pd.DataFrame({
             'date': dates,
-            'study_time': np.random.normal(2.5, 0.5, 30),  # 学习时长
-            'focus_rate': np.random.normal(85, 5, 30),     # 专注度
-            'completion_rate': np.random.normal(78, 8, 30), # 完成率
-            'interaction': np.random.randint(10, 50, 30)    # 互动次数
+            'study_hours': study_hours,
+            'attention': attention_levels
         })
         
-        # 绘制趋势图
+        # 创建趋势图
         fig = go.Figure()
-        
-        # 添加学习时长曲线
         fig.add_trace(go.Scatter(
-            x=data['date'],
-            y=data['study_time'],
-            name='学习时长(小时)',
-            line=dict(color='#1E88E5', width=2)
+            x=df['date'], 
+            y=df['study_hours'],
+            mode='lines',
+            name='学习时长(小时)'
         ))
-        
-        # 添加专注度曲线
         fig.add_trace(go.Scatter(
-            x=data['date'],
-            y=data['focus_rate'],
+            x=df['date'], 
+            y=df['attention'],
+            mode='lines',
             name='专注度(%)',
-            line=dict(color='#43A047', width=2)
+            yaxis='y2'
         ))
         
         fig.update_layout(
-            title="📈 学习行为趋势分析",
-            xaxis_title="日期",
-            yaxis_title="数值",
-            hovermode='x unified'
+            title='学习行为趋势分析',
+            xaxis_title='日期',
+            yaxis_title='学习时长(小时)',
+            yaxis2=dict(
+                title='专注度(%)',
+                overlaying='y',
+                side='right',
+                range=[0, 100]
+            ),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1
+            )
         )
         
         st.plotly_chart(fig, use_container_width=True)
     
-    with tab2:
-        st.subheader("🔍 详细行为分析")
+    # 详细分析选项卡
+    with behavior_tabs[1]:
+        st.write("### 详细学习行为分析")
         
-        # 时间分布分析
-        st.write("📊 学习时间分布")
-        time_data = pd.DataFrame({
-            'hour': range(24),
-            'study_count': np.random.poisson(lam=5, size=24)
-        })
+        # 学习时间分布
+        st.write("#### 学习时间分布")
+        time_data = {
+            '时间段': ['早晨(6-9点)', '上午(9-12点)', '下午(12-18点)', '晚上(18-22点)', '深夜(22-6点)'],
+            '学习时长(小时)': [0.5, 0.8, 0.6, 1.2, 0.3]
+        }
+        time_df = pd.DataFrame(time_data)
         
-        fig_time = go.Figure(data=[
-            go.Bar(
-                x=time_data['hour'],
-                y=time_data['study_count'],
-                marker_color='#1E88E5'
-            )
-        ])
-        
-        fig_time.update_layout(
-            title="📊 每日学习时间分布",
-            xaxis_title="小时",
-            yaxis_title="学习次数"
+        fig = px.bar(
+            time_df, 
+            x='时间段', 
+            y='学习时长(小时)',
+            title='学习时间分布',
+            color='学习时长(小时)',
+            color_continuous_scale=px.colors.sequential.Viridis
         )
+        st.plotly_chart(fig, use_container_width=True)
         
-        st.plotly_chart(fig_time, use_container_width=True)
+        # 学习内容分布
+        st.write("#### 学习内容分布")
+        content_data = {
+            '学习内容': ['理论学习', '实践操作', '复习巩固', '测试评估', '拓展学习'],
+            '占比': [35, 25, 20, 15, 5]
+        }
+        content_df = pd.DataFrame(content_data)
         
-        # 学习行为模式分析
-        st.write("📊 学习行为模式")
-        col1, col2 = st.columns(2)
+        fig = px.pie(
+            content_df,
+            values='占比',
+            names='学习内容',
+            title='学习内容分布'
+        )
+        st.plotly_chart(fig, use_container_width=True)
         
-        with col1:
-            # 学习方式分布
-            labels = ['视频学习', '练习题', '阅读材料', '互动讨论']
-            values = [40, 25, 20, 15]
-            
-            fig_pie = go.Figure(data=[go.Pie(labels=labels, values=values)])
-            fig_pie.update_layout(title="📊 学习方式分布")
-            st.plotly_chart(fig_pie, use_container_width=True)
+        # 学习效率评估
+        st.write("#### 学习效率评估")
+        efficiency_data = {
+            '学习环境': ['安静环境', '嘈杂环境', '户外环境', '图书馆', '咖啡厅'],
+            '效率评分': [9.2, 6.5, 7.8, 8.9, 7.2]
+        }
+        efficiency_df = pd.DataFrame(efficiency_data)
         
-        with col2:
-            # 知识点掌握情况
-            subjects = ['数学', '物理', '化学', '生物', '英语']
-            scores = [85, 78, 92, 88, 76]
-            
-            fig_radar = go.Figure(data=go.Scatterpolar(
-                r=scores,
-                theta=subjects,
-                fill='toself'
-            ))
-            
-            fig_radar.update_layout(title="📊 知识点掌握情况")
-            st.plotly_chart(fig_radar, use_container_width=True)
+        fig = px.bar(
+            efficiency_df,
+            x='学习环境',
+            y='效率评分',
+            title='不同环境学习效率评估',
+            color='效率评分',
+            color_continuous_scale=px.colors.sequential.Plasma
+        )
+        st.plotly_chart(fig, use_container_width=True)
     
-    with tab3:
-        st.subheader("💡 学习改进建议")
+    # 改进建议选项卡
+    with behavior_tabs[2]:
+        st.write("### 学习行为改进建议")
         
-        # 生成AI建议
-        if st.button("生成个性化建议"):
-            with st.spinner("AI分析中..."):
-                try:
-                    deepseek_ai = DeepSeekAI()
-                    prompt = """
-                    基于以下学习行为数据生成个性化学习建议：
-                    1. 平均每日学习时长：2.5小时
-                    2. 平均专注度：85%
-                    3. 任务完成率：78%
-                    4. 主要学习时间段：晚上8点-10点
-                    5. 最常用学习方式：视频学习(40%)
-                    
-                    请从以下几个方面提供建议：
-                    1. 时间管理
-                    2. 学习效率提升
-                    3. 知识巩固方法
-                    4. 学习方式多样化
-                    """
-                    
-                    response = deepseek_ai.sync_generate_response(
-                        [{"role": "user", "content": prompt}],
-                        temperature=0.7
-                    )
-                    
-                    if "error" not in response:
-                        st.write(response["choices"][0]["message"]["content"])
-                    else:
-                        st.error("生成建议失败，请稍后再试")
-                        
-                except Exception as e:
-                    st.error(f"生成建议时出错: {str(e)}")
+        # 显示改进建议
+        with st.container():
+            st.info("#### 时间管理优化")
+            st.write("""
+            1. **制定合理的学习计划**：根据个人精力分布，将重要内容安排在精力充沛的时段
+            2. **使用番茄工作法**：25分钟专注学习，5分钟短暂休息
+            3. **建立每日例行学习**：固定时间段专门用于学习，形成习惯
+            4. **减少无效学习时间**：避免边学习边刷手机等分散注意力的行为
+            """)
         
-        # 添加手动建议
-        st.write("💡 通用改进建议")
-        st.info("""
-        1. 建议增加每日学习时长至3-4小时
-        2. 可以尝试番茄工作法提高专注度
-        3. 建议增加练习题的比重
-        4. 可以尝试早晨学习，提高学习效率
-        5. 建议多参与互动讨论，加深理解
-        """)
+        with st.container():
+            st.success("#### 学习方法改进")
+            st.write("""
+            1. **主动学习法**：提前预习，带着问题学习
+            2. **费曼学习法**：学会向他人解释所学内容，检验理解程度
+            3. **间隔重复**：科学安排复习时间，提高记忆效果
+            4. **思维导图**：构建知识体系，加深理解
+            """)
+        
+        with st.container():
+            st.warning("#### 专注力提升")
+            st.write("""
+            1. **环境优化**：选择安静、整洁的学习环境
+            2. **减少干扰**：学习时关闭社交媒体通知
+            3. **冥想训练**：每天进行5-10分钟的专注力训练
+            4. **适当休息**：避免长时间连续学习导致的注意力下降
+            """)
+        
+        with st.container():
+            st.error("#### 学习动力维持")
+            st.write("""
+            1. **设定明确目标**：将大目标分解为小目标，获得成就感
+            2. **奖励机制**：完成学习任务后给予自己适当奖励
+            3. **学习社群**：加入学习小组，相互监督和鼓励
+            4. **可视化进度**：记录学习进展，看到自己的成长
+            """)
 
 def render_learning_diagnosis():
     """渲染学习诊断页面"""
-    st.subheader("📝 学习诊断")
+    st.subheader("学习诊断")
     
-    # 创建诊断表单
-    with st.form("diagnosis_form"):
-        # 基本信息
-        st.write("#### 基本学习信息")
-        col1, col2 = st.columns(2)
+    # 创建表单
+    with st.form(key="diagnosis_form"):
+        # 表单内容保持不变
+        student_name = st.text_input("学生姓名")
+        subject = st.selectbox("学科", ["数学", "语文", "英语", "物理", "化学", "生物"])
         
-        with col1:
-            study_time = st.number_input(
-                "平均每日学习时长（小时）",
-                min_value=0.0,
-                max_value=24.0,
-                value=2.5,
-                step=0.5
-            )
-            attention_span = st.slider(
-                "平均专注时长（分钟）",
-                min_value=0,
-                max_value=120,
-                value=45
-            )
+        # 上传成绩数据
+        uploaded_file = st.file_uploader("上传成绩数据(CSV格式)", type=["csv"])
         
-        with col2:
-            completion_rate = st.slider(
-                "任务完成率",
-                min_value=0,
-                max_value=100,
-                value=75,
-                format="%d%%"
-            )
-            understanding = st.slider(
-                "知识理解度",
-                min_value=0,
-                max_value=100,
-                value=80,
-                format="%d%%"
-            )
-        
-        # 学习习惯评估
-        st.write("#### 学习习惯评估")
-        habits_col1, habits_col2 = st.columns(2)
-        
-        with habits_col1:
-            planning = st.select_slider(
-                "学习计划性",
-                options=["很差", "较差", "一般", "良好", "优秀"],
-                value="良好"
-            )
-            review = st.select_slider(
-                "复习频率",
-                options=["很少", "偶尔", "一般", "经常", "频繁"],
-                value="一般"
-            )
-        
-        with habits_col2:
-            note_taking = st.select_slider(
-                "笔记记录",
-                options=["很少", "偶尔", "一般", "经常", "总是"],
-                value="经常"
-            )
-            self_reflection = st.select_slider(
-                "自我反思",
-                options=["很少", "偶尔", "一般", "经常", "频繁"],
-                value="一般"
-            )
-        
-        # 学习困难
-        st.write("#### 学习困难")
-        difficulties = st.multiselect(
-            "选择你遇到的主要困难（可多选）",
-            ["注意力不集中", "记忆效果差", "理解困难", "缺乏动力", "时间管理差", "学习方法不当"],
-            default=["注意力不集中", "时间管理差"]
+        # 诊断选项
+        diagnosis_options = st.multiselect(
+            "诊断内容",
+            ["知识点掌握情况", "学习习惯分析", "学习效率评估", "学习风格识别", "学习障碍识别"],
+            ["知识点掌握情况", "学习习惯分析"]
         )
         
         # 提交按钮
-        submitted = st.form_submit_button("生成诊断报告")
+        submit_button = st.form_submit_button("开始诊断")
     
-    # 处理表单提交
-    if submitted:
-        st.success("诊断完成！")
-        
-        # 显示诊断报告
-        st.markdown("### 📊 诊断报告")
-        
-        # 总体评估
-        score = calculate_learning_score(study_time, completion_rate, understanding)
-        st.metric("学习效能评分", f"{score}分", "基于100分制")
-        
-        # 详细分析
-        st.markdown("#### 🔍 详细分析")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("##### 优势")
-            st.write("1. 有规律的学习习惯")
-            st.write("2. 良好的笔记记录习惯")
-            st.write("3. 较高的知识理解度")
-        
-        with col2:
-            st.markdown("##### 待改进")
-            st.write("1. 增加每日学习时长")
-            st.write("2. 提高任务完成率")
-            st.write("3. 加强时间管理")
-        
-        # AI建议
-        st.markdown("#### 💡 改进建议")
-        generate_improvement_suggestions(difficulties)
-
-def calculate_learning_score(study_time, completion_rate, understanding):
-    """计算学习效能评分"""
-    # 简单的加权计算
-    time_score = min(study_time / 4 * 100, 100) * 0.3
-    completion_score = completion_rate * 0.4
-    understanding_score = understanding * 0.3
-    
-    return round(time_score + completion_score + understanding_score)
-
-def generate_improvement_suggestions(difficulties):
-    """生成改进建议"""
-    suggestions = {
-        "注意力不集中": """
-        1. 使用番茄工作法，25分钟专注学习，5分钟休息
-        2. 选择安静的学习环境
-        3. 清除可能分散注意力的因素
-        4. 尝试背景音乐辅助专注
-        """,
-        "记忆效果差": """
-        1. 使用记忆技巧（如联想法、记忆宫殿）
-        2. 增加复习频率，使用间隔重复
-        3. 制作思维导图加深理解
-        4. 尝试多感官学习方式
-        """,
-        "理解困难": """
-        1. 使用费曼学习法，尝试向他人解释
-        2. 将复杂概念分解为小部分
-        3. 寻找实际应用场景
-        4. 多做练习和实践
-        """,
-        "缺乏动力": """
-        1. 设定明确的短期目标
-        2. 建立奖励机制
-        3. 加入学习小组
-        4. 可视化学习进度
-        """,
-        "时间管理差": """
-        1. 制定详细的学习计划
-        2. 使用时间管理工具
-        3. 设置任务优先级
-        4. 避免拖延，立即行动
-        """,
-        "学习方法不当": """
-        1. 尝试不同的学习方法
-        2. 分析最适合自己的方式
-        3. 参考优秀学习者的经验
-        4. 定期评估学习效果
-        """
-    }
-    
-    for difficulty in difficulties:
-        st.info(f"**{difficulty}的改进建议：**\n{suggestions[difficulty]}")
+    # 表单外处理提交逻辑
+    if submit_button:
+        if not student_name:
+            st.error("请输入学生姓名")
+        else:
+            with st.spinner("正在进行学习诊断..."):
+                # 生成诊断报告
+                st.success("诊断完成！")
+                
+                # 显示诊断结果
+                st.subheader("诊断结果")
+                
+                # 模拟诊断数据
+                diagnosis_data = generate_diagnosis_data(subject)
+                
+                # 知识点掌握情况
+                if "知识点掌握情况" in diagnosis_options:
+                    st.write("#### 知识点掌握情况")
+                    
+                    # 创建知识点掌握情况图表
+                    fig = px.bar(
+                        diagnosis_data["knowledge_points"],
+                        x="knowledge_point",
+                        y="mastery",
+                        color="mastery",
+                        color_continuous_scale=["red", "yellow", "green"],
+                        labels={"knowledge_point": "知识点", "mastery": "掌握程度"},
+                        title="知识点掌握程度分析"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # 学习习惯分析
+                if "学习习惯分析" in diagnosis_options:
+                    st.write("#### 学习习惯分析")
+                    
+                    # 创建学习习惯雷达图
+                    fig = go.Figure()
+                    
+                    categories = list(diagnosis_data["learning_habits"].keys())
+                    values = list(diagnosis_data["learning_habits"].values())
+                    
+                    fig.add_trace(go.Scatterpolar(
+                        r=values,
+                        theta=categories,
+                        fill='toself',
+                        name='学习习惯'
+                    ))
+                    
+                    fig.update_layout(
+                        polar=dict(
+                            radialaxis=dict(
+                                visible=True,
+                                range=[0, 10]
+                            )
+                        ),
+                        title="学习习惯雷达图"
+                    )
+                    
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # 学习效率评估
+                if "学习效率评估" in diagnosis_options:
+                    st.write("#### 学习效率评估")
+                    
+                    # 创建学习效率折线图
+                    fig = px.line(
+                        diagnosis_data["efficiency"],
+                        x="date",
+                        y="efficiency",
+                        labels={"date": "日期", "efficiency": "学习效率"},
+                        title="学习效率趋势"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # 学习风格识别
+                if "学习风格识别" in diagnosis_options:
+                    st.write("#### 学习风格识别")
+                    
+                    # 创建学习风格饼图
+                    fig = px.pie(
+                        values=list(diagnosis_data["learning_style"].values()),
+                        names=list(diagnosis_data["learning_style"].keys()),
+                        title="学习风格分布"
+                    )
+                    st.plotly_chart(fig, use_container_width=True)
+                
+                # 学习障碍识别
+                if "学习障碍识别" in diagnosis_options:
+                    st.write("#### 学习障碍识别")
+                    
+                    for obstacle, description in diagnosis_data["obstacles"].items():
+                        st.info(f"**{obstacle}**: {description}")
+                
+                # 生成诊断报告
+                report = generate_diagnosis_report(student_name, subject, diagnosis_data, diagnosis_options)
+                
+                # 表单外部使用下载按钮
+                st.download_button(
+                    label="下载诊断报告",
+                    data=report,
+                    file_name=f"{student_name}_{subject}_诊断报告.txt",
+                    mime="text/plain"
+                )
 
 # 添加帮助页面
 def render_help_page():
@@ -3711,7 +3762,7 @@ def render_learning_tracker():
 
 def render_learning_behavior():
     """渲染学习行为分析页面"""
-    st.title("📊 学习行为分析")
+    st.title("学习行为分析")
     
     # 初始化学习行为数据
     if 'learning_behavior' not in st.session_state:
@@ -3727,7 +3778,7 @@ def render_learning_behavior():
     tab1, tab2, tab3 = st.tabs(["📊 行为概览", "🔍 详细分析", "💡 改进建议"])
     
     with tab1:
-        st.subheader("📊 行为概览")
+        st.subheader("学习行为概览")
         
         # 显示关键指标
         col1, col2, col3, col4 = st.columns(4)
@@ -3765,7 +3816,7 @@ def render_learning_behavior():
             )
         
         # 添加行为趋势图
-        st.subheader("📈 学习行为趋势")
+        st.subheader("学习行为趋势")
         
         # 生成示例数据
         dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
@@ -3797,7 +3848,7 @@ def render_learning_behavior():
         ))
         
         fig.update_layout(
-            title="📈 学习行为趋势分析",
+            title="学习行为趋势分析",
             xaxis_title="日期",
             yaxis_title="数值",
             hovermode='x unified'
@@ -3806,10 +3857,10 @@ def render_learning_behavior():
         st.plotly_chart(fig, use_container_width=True)
     
     with tab2:
-        st.subheader("🔍 详细行为分析")
+        st.subheader("详细行为分析")
         
         # 时间分布分析
-        st.write("📊 学习时间分布")
+        st.write("##### 学习时间分布")
         time_data = pd.DataFrame({
             'hour': range(24),
             'study_count': np.random.poisson(lam=5, size=24)
@@ -3824,7 +3875,7 @@ def render_learning_behavior():
         ])
         
         fig_time.update_layout(
-            title="📊 每日学习时间分布",
+            title="每日学习时间分布",
             xaxis_title="小时",
             yaxis_title="学习次数"
         )
@@ -3832,7 +3883,7 @@ def render_learning_behavior():
         st.plotly_chart(fig_time, use_container_width=True)
         
         # 学习行为模式分析
-        st.write("📊 学习行为模式")
+        st.write("##### 学习行为模式")
         col1, col2 = st.columns(2)
         
         with col1:
@@ -3841,7 +3892,7 @@ def render_learning_behavior():
             values = [40, 25, 20, 15]
             
             fig_pie = go.Figure(data=[go.Pie(labels=labels, values=values)])
-            fig_pie.update_layout(title="📊 学习方式分布")
+            fig_pie.update_layout(title="学习方式分布")
             st.plotly_chart(fig_pie, use_container_width=True)
         
         with col2:
@@ -3855,11 +3906,11 @@ def render_learning_behavior():
                 fill='toself'
             ))
             
-            fig_radar.update_layout(title="📊 知识点掌握情况")
+            fig_radar.update_layout(title="知识点掌握情况")
             st.plotly_chart(fig_radar, use_container_width=True)
     
     with tab3:
-        st.subheader("💡 学习改进建议")
+        st.subheader("学习改进建议")
         
         # 生成AI建议
         if st.button("生成个性化建议"):
@@ -3895,7 +3946,7 @@ def render_learning_behavior():
                     st.error(f"生成建议时出错: {str(e)}")
         
         # 添加手动建议
-        st.write("💡 通用改进建议")
+        st.write("##### 通用改进建议")
         st.info("""
         1. 建议增加每日学习时长至3-4小时
         2. 可以尝试番茄工作法提高专注度
@@ -3906,7 +3957,7 @@ def render_learning_behavior():
 
 def render_learning_space():
     """渲染学习空间推荐页面"""
-    st.title("🎯 学习空间推荐")
+    st.title("学习空间推荐")
     
     # 添加AI推荐部分
     with st.expander("🤖 获取AI个性化空间推荐", expanded=True):
@@ -4193,13 +4244,13 @@ def render_learning_space():
 
 def render_settings():
     """渲染设置页面"""
-    st.title("⚙️ 系统设置")
+    st.title("系统设置")
     
     # 创建设置选项卡
     tab1, tab2, tab3 = st.tabs(["👤 账户设置", "🔑 API配置", "📊 使用统计"])
     
     with tab1:
-        st.subheader("👤 账户设置")
+        st.subheader("账户设置")
         
         # 个人信息设置
         with st.expander("个人信息", expanded=True):
@@ -4242,7 +4293,7 @@ def render_settings():
             )
     
     with tab2:
-        st.subheader("🔑 API配置")
+        st.subheader("API配置")
         
         # DeepSeek API设置
         with st.expander("DeepSeek API配置", expanded=True):
@@ -4285,7 +4336,7 @@ def render_settings():
             st.number_input("API请求超时时间（秒）", value=30)
     
     with tab3:
-        st.subheader("📊 使用统计")
+        st.subheader("使用统计")
         
         # 生成示例使用数据
         dates = pd.date_range(end=datetime.now(), periods=30, freq='D')
@@ -4313,7 +4364,7 @@ def render_settings():
         ))
         
         fig.update_layout(
-            title="📈 30天使用统计",
+            title="30天使用统计",
             xaxis_title="日期",
             yaxis_title="次数",
             hovermode='x unified'
@@ -4570,248 +4621,6 @@ def get_api_key(key_name):
 DEEPSEEK_API_KEY = get_api_key("DEEPSEEK_API_KEY")
 if not DEEPSEEK_API_KEY:
     st.warning("DeepSeek API密钥未配置，请在Streamlit Secrets或.env文件中设置DEEPSEEK_API_KEY")
-
-# 添加用户管理相关的类和函数
-class UserManager:
-    def __init__(self):
-        self.users_file = "users.json"
-        # 确保用户文件存在
-        if not os.path.exists(self.users_file):
-            with open(self.users_file, "w") as f:
-                json.dump({}, f)
-    
-    def register_user(self, username: str, password: str) -> bool:
-        """注册新用户"""
-        try:
-            with open(self.users_file, "r") as f:
-                users = json.load(f)
-            
-            if username in users:
-                return False  # 用户已存在
-            
-            # 存储加密后的密码
-            users[username] = hashlib.sha256(password.encode()).hexdigest()
-            
-            with open(self.users_file, "w") as f:
-                json.dump(users, f)
-            return True
-        except Exception as e:
-            print(f"注册错误: {e}")
-            return False
-    
-    def verify_user(self, username: str, password: str) -> bool:
-        """验证用户登录"""
-        try:
-            with open(self.users_file, "r") as f:
-                users = json.load(f)
-            
-            if username not in users:
-                return False
-            
-            hashed_password = hashlib.sha256(password.encode()).hexdigest()
-            return users[username] == hashed_password
-        except Exception as e:
-            print(f"验证错误: {e}")
-            return False
-
-def render_register_page():
-    """渲染注册页面"""
-    st.markdown("""
-    <div style='text-align: center; padding: 2rem 0;'>
-        <h1 style='color: #1E88E5;'>🎓 注册新用户</h1>
-        <p style='color: #666; font-size: 1.2rem;'>创建您的智慧学习空间账户</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    with st.form("register_form", clear_on_submit=True):
-        username = st.text_input("用户名", placeholder="请输入用户名")
-        password = st.text_input("密码", type="password", placeholder="请输入密码")
-        confirm_password = st.text_input("确认密码", type="password", placeholder="请再次输入密码")
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            submitted = st.form_submit_button("注册")
-        with col2:
-            back_to_login = st.form_submit_button("返回登录")
-        
-        if submitted:
-            if not username or not password:
-                st.error("用户名和密码不能为空")
-            elif password != confirm_password:
-                st.error("两次输入的密码不一致")
-            else:
-                user_manager = UserManager()
-                if user_manager.register_user(username, password):
-                    st.success("注册成功！请返回登录页面")
-                else:
-                    st.error("用户名已存在，请选择其他用户名")
-        
-        if back_to_login:
-            st.session_state.show_register = False
-            st.rerun()
-
-def render_login_page():
-    """渲染登录页面"""
-    # 初始化session状态
-    if 'show_register' not in st.session_state:
-        st.session_state.show_register = False
-    
-    if st.session_state.show_register:
-        render_register_page()
-    else:
-        col1, col2, col3 = st.columns([1, 2, 1])
-        
-        with col2:
-            st.markdown("""
-            <div style='text-align: center; padding: 2rem 0;'>
-                <h1 style='color: #1E88E5;'>🎓 智慧学习空间</h1>
-                <p style='color: #666; font-size: 1.2rem;'>欢迎来到基于AIGC的智能学习平台</p>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            with st.form("login_form", clear_on_submit=True):
-                username = st.text_input("用户名", placeholder="请输入用户名")
-                password = st.text_input("密码", type="password", placeholder="请输入密码")
-                remember_me = st.checkbox("记住我")
-                
-                submitted = st.form_submit_button("登 录")
-                
-                if submitted:
-                    user_manager = UserManager()
-                    if user_manager.verify_user(username, password):
-                        st.session_state.logged_in = True
-                        st.session_state.username = username
-                        st.success("登录成功！")
-                        st.rerun()
-                    else:
-                        st.error("用户名或密码错误")
-            
-            # 注册和找回密码按钮放在表单外部
-            col_reg, col_forget = st.columns(2)
-            with col_reg:
-                if st.button("📝 注册新用户", use_container_width=True):
-                    st.session_state.show_register = True
-                    st.rerun()
-            
-            with col_forget:
-                if st.button("🔑 忘记密码?", use_container_width=True):
-                    st.info("请联系管理员重置密码")
-
-# 在主函数中添加用户管理功能
-def main():
-    # 初始化session状态
-    if 'logged_in' not in st.session_state:
-        st.session_state.logged_in = False
-    
-    # 检查登录状态
-    if not st.session_state.logged_in:
-        render_login_page()
-    else:
-        render_main_app()
-
-def render_main_app():
-    """渲染主应用界面"""
-    st.title("基于AIGC的智慧学习空间")
-    st.subheader("智能化学习空间分析与可视化平台")
-    
-    # 创建侧边栏菜单
-    menu_options = [
-        "🏠 首页",
-        "🎯 学习空间推荐",
-        "📊 学习行为分析",
-        "🤖 AI助手",
-        "📝 学习诊断",
-        "⚙️ 设置"
-    ]
-    
-    with st.sidebar:
-        st.markdown(f"### 👋 欢迎, {st.session_state.username}!")
-        selected_menu = st.selectbox("导航菜单", menu_options)
-        
-        # 添加退出按钮
-        if st.button("退出登录", use_container_width=True):
-            st.session_state.logged_in = False
-            st.session_state.username = None
-            st.rerun()
-    
-    # 根据选择的菜单项显示相应的内容
-    if selected_menu == "🏠 首页":
-        render_welcome_page()
-    elif selected_menu == "🎯 学习空间推荐":
-        render_learning_space_recommendation()
-    elif selected_menu == "📊 学习行为分析":
-        render_learning_behavior_analysis()
-    elif selected_menu == "🤖 AI助手":
-        render_ai_assistant()
-    elif selected_menu == "📝 学习诊断":
-        render_learning_diagnosis()
-    elif selected_menu == "⚙️ 设置":
-        render_settings()
-
-def render_welcome_page():
-    """渲染欢迎页面"""
-    # 欢迎横幅
-    st.markdown(f"""
-    <div style='background: linear-gradient(90deg, #1E88E5 0%, #64B5F6 100%); 
-                padding: 2rem; border-radius: 10px; margin-bottom: 2rem;
-                color: white; text-align: center;'>
-        <h2>👋 欢迎回来, {st.session_state.username}!</h2>
-        <p>今天是 {datetime.now().strftime('%Y年%m月%d日 %A')}</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # 快速访问卡片
-    st.markdown("### 🚀 快速访问")
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.markdown("""
-        <div style='background: rgba(30, 136, 229, 0.1); padding: 1rem; 
-                    border-radius: 10px; text-align: center;'>
-            <h4>📚 学习空间</h4>
-            <p>探索多样化学习环境</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    with col2:
-        st.markdown("""
-        <div style='background: rgba(30, 136, 229, 0.1); padding: 1rem; 
-                    border-radius: 10px; text-align: center;'>
-            <h4>🤖 AI助手</h4>
-            <p>智能学习伙伴</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    with col3:
-        st.markdown("""
-        <div style='background: rgba(30, 136, 229, 0.1); padding: 1rem; 
-                    border-radius: 10px; text-align: center;'>
-            <h4>📊 数据分析</h4>
-            <p>学习行为洞察</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-    with col4:
-        st.markdown("""
-        <div style='background: rgba(30, 136, 229, 0.1); padding: 1rem; 
-                    border-radius: 10px; text-align: center;'>
-            <h4>🎯 学习诊断</h4>
-            <p>个性化学习建议</p>
-        </div>
-        """, unsafe_allow_html=True)
-    
-    # 学习数据概览
-    st.markdown("### 📈 今日学习概览")
-    metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
-    
-    with metric_col1:
-        st.metric("学习时长", "2.5小时", "↑ 0.5小时")
-    with metric_col2:
-        st.metric("完成任务", "8/10", "80%")
-    with metric_col3:
-        st.metric("知识点", "12个", "↑ 3个")
-    with metric_col4:
-        st.metric("学习效率", "85%", "↑ 5%")
 
 if __name__ == "__main__":
     main() 
