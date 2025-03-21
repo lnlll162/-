@@ -4684,5 +4684,144 @@ DEEPSEEK_API_KEY = get_api_key("DEEPSEEK_API_KEY")
 if not DEEPSEEK_API_KEY:
     st.warning("DeepSeek API密钥未配置，请在Streamlit Secrets或.env文件中设置DEEPSEEK_API_KEY")
 
+# 添加用户管理相关的类和函数
+class UserManager:
+    def __init__(self):
+        self.users_file = "users.json"
+        # 确保用户文件存在
+        if not os.path.exists(self.users_file):
+            with open(self.users_file, "w") as f:
+                json.dump({}, f)
+    
+    def register_user(self, username: str, password: str) -> bool:
+        """注册新用户"""
+        try:
+            with open(self.users_file, "r") as f:
+                users = json.load(f)
+            
+            if username in users:
+                return False  # 用户已存在
+            
+            # 存储加密后的密码
+            users[username] = hashlib.sha256(password.encode()).hexdigest()
+            
+            with open(self.users_file, "w") as f:
+                json.dump(users, f)
+            return True
+        except Exception as e:
+            print(f"注册错误: {e}")
+            return False
+    
+    def verify_user(self, username: str, password: str) -> bool:
+        """验证用户登录"""
+        try:
+            with open(self.users_file, "r") as f:
+                users = json.load(f)
+            
+            if username not in users:
+                return False
+            
+            hashed_password = hashlib.sha256(password.encode()).hexdigest()
+            return users[username] == hashed_password
+        except Exception as e:
+            print(f"验证错误: {e}")
+            return False
+
+def render_register_page():
+    """渲染注册页面"""
+    st.markdown("""
+    <div style='text-align: center; padding: 2rem 0;'>
+        <h1 style='color: #1E88E5;'>🎓 注册新用户</h1>
+        <p style='color: #666; font-size: 1.2rem;'>创建您的智慧学习空间账户</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    with st.form("register_form", clear_on_submit=True):
+        username = st.text_input("用户名", placeholder="请输入用户名")
+        password = st.text_input("密码", type="password", placeholder="请输入密码")
+        confirm_password = st.text_input("确认密码", type="password", placeholder="请再次输入密码")
+        
+        submitted = st.form_submit_button("注册")
+        
+        if submitted:
+            if not username or not password:
+                st.error("用户名和密码不能为空")
+            elif password != confirm_password:
+                st.error("两次输入的密码不一致")
+            else:
+                user_manager = UserManager()
+                if user_manager.register_user(username, password):
+                    st.success("注册成功！请返回登录页面")
+                    # 添加返回登录页面的按钮
+                    if st.button("返回登录"):
+                        st.session_state.show_register = False
+                        st.experimental_rerun()
+                else:
+                    st.error("用户名已存在，请选择其他用户名")
+
+def render_login_page():
+    """渲染登录页面"""
+    # 初始化session状态
+    if 'show_register' not in st.session_state:
+        st.session_state.show_register = False
+    
+    if st.session_state.show_register:
+        render_register_page()
+        # 添加返回登录的按钮
+        if st.button("返回登录"):
+            st.session_state.show_register = False
+            st.experimental_rerun()
+    else:
+        col1, col2, col3 = st.columns([1, 2, 1])
+        
+        with col2:
+            st.markdown("""
+            <div style='text-align: center; padding: 2rem 0;'>
+                <h1 style='color: #1E88E5;'>🎓 智慧学习空间</h1>
+                <p style='color: #666; font-size: 1.2rem;'>欢迎来到基于AIGC的智能学习平台</p>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            with st.form("login_form", clear_on_submit=True):
+                username = st.text_input("用户名", placeholder="请输入用户名")
+                password = st.text_input("密码", type="password", placeholder="请输入密码")
+                remember_me = st.checkbox("记住我")
+                
+                submitted = st.form_submit_button("登 录")
+                
+                if submitted:
+                    user_manager = UserManager()
+                    if user_manager.verify_user(username, password):
+                        st.session_state.logged_in = True
+                        st.session_state.username = username
+                        st.success("登录成功！")
+                        st.rerun()
+                    else:
+                        st.error("用户名或密码错误")
+            
+            # 注册和找回密码按钮
+            col_reg, col_forget = st.columns(2)
+            with col_reg:
+                if st.button("📝 注册新用户", use_container_width=True):
+                    st.session_state.show_register = True
+                    st.rerun()
+            
+            with col_forget:
+                if st.button("🔑 忘记密码?", use_container_width=True):
+                    st.info("请联系管理员重置密码")
+
+# 在主函数中添加用户管理功能
+def main():
+    # 初始化session状态
+    if 'logged_in' not in st.session_state:
+        st.session_state.logged_in = False
+    
+    # 检查登录状态
+    if not st.session_state.logged_in:
+        render_login_page()
+    else:
+        # 显示主应用界面
+        render_main_app()
+
 if __name__ == "__main__":
     main() 
