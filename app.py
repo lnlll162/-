@@ -4142,7 +4142,7 @@ def render_learning_space():
                 """
                 
                 # 调用AI生成推荐
-                ai = DouBaoAI()  # 或其他AI实现
+                ai = DeepSeekAI()  # 改用DeepSeek AI
                 messages = [
                     {"role": "system", "content": "你是一个专业的学习空间推荐专家，擅长根据学习者的具体需求推荐最适合的学习空间组合。"},
                     {"role": "user", "content": prompt}
