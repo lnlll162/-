@@ -2,7 +2,7 @@
 import os
 import json
 import time
-import random  # 添加这行
+import random
 import hashlib
 import logging
 import secrets
@@ -21,6 +21,19 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from dotenv import load_dotenv
 from reportlab.pdfgen import canvas
+
+# 设置页面配置（必须是第一个Streamlit命令）
+st.set_page_config(
+    page_title="5A智慧学习空间",
+    page_icon="🎓",
+    layout="wide",
+    initial_sidebar_state="expanded",
+    menu_items={
+        'Get Help': 'https://github.com/yourusername/your-repo',
+        'Report a bug': "https://github.com/yourusername/your-repo/issues",
+        'About': "# 5A智慧学习空间\n这是一个智能学习空间管理系统。"
+    }
+)
 
 # 国际化支持
 LANGUAGES = {
@@ -103,13 +116,6 @@ def get_text(key):
         }
     }
     return texts[key][st.session_state.language]
-
-# 页面配置
-st.set_page_config(
-    page_title="基于AIGC的5A全域智慧学习交互系统",
-    page_icon="🎓",
-    layout="wide"
-)
 
 # 添加环境变量支持
 load_dotenv()
@@ -4763,9 +4769,4 @@ if not DEEPSEEK_API_KEY:
     st.warning("DeepSeek API密钥未配置，请在Streamlit Secrets或.env文件中设置DEEPSEEK_API_KEY")
 
 if __name__ == "__main__":
-    st.set_page_config(
-        page_title="基于AIGC的5A全域智慧学习交互系统",
-        page_icon="📚",
-        layout="wide"
-    )
     main() 
