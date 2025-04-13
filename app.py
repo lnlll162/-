@@ -55,7 +55,7 @@ def get_text(key):
     texts = {
         "title": {
             "en": "5A Smart Learning Space Dashboard",
-            "zh": "5A智慧学习空间数据大屏"
+            "zh": "5A智慧学习交互系统数据大屏"
         },
         "dashboard": {
             "en": "Data Dashboard",
@@ -106,7 +106,7 @@ def get_text(key):
 
 # 页面配置
 st.set_page_config(
-    page_title="基于AIGC的智慧学习空间",
+    page_title="基于AIGC的5A全域智慧学习交互系统",
     page_icon="🎓",
     layout="wide"
 )
@@ -162,7 +162,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # 添加主标题和副标题
-st.title("基于AIGC的智慧学习空间")
+st.title("基于AIGC的5A全域智慧学习交互系统")
 st.markdown("### 智能化学习空间分析与可视化平台")
 
 # 配置日志
@@ -251,91 +251,112 @@ class AuthConfig:
         except:
             return False, "系统错误"
 
-# 登录页面
+# 添加会话管理类
+class SessionManager:
+    def __init__(self):
+        self.session_file = "sessions.json"
+        self.session_timeout = 3600  # 会话超时时间（秒）
+        self.init_sessions()
+    
+    def init_sessions(self):
+        if not os.path.exists(self.session_file):
+            with open(self.session_file, "w") as f:
+                json.dump({}, f)
+    
+    def create_session(self, username):
+        session_id = secrets.token_hex(32)
+        session_data = {
+            "username": username,
+            "created_at": datetime.now().isoformat(),
+            "last_activity": datetime.now().isoformat()
+        }
+        
+        try:
+            with open(self.session_file, "r") as f:
+                sessions = json.load(f)
+            sessions[session_id] = session_data
+            with open(self.session_file, "w") as f:
+                json.dump(sessions, f)
+            return session_id
+        except:
+            return None
+    
+    def validate_session(self, session_id):
+        try:
+            with open(self.session_file, "r") as f:
+                sessions = json.load(f)
+            
+            if session_id not in sessions:
+                return False
+                
+            session = sessions[session_id]
+            last_activity = datetime.fromisoformat(session["last_activity"])
+            
+            # 检查会话是否过期
+            if (datetime.now() - last_activity).total_seconds() > self.session_timeout:
+                del sessions[session_id]
+                with open(self.session_file, "w") as f:
+                    json.dump(sessions, f)
+                return False
+            
+            # 更新最后活动时间
+            session["last_activity"] = datetime.now().isoformat()
+            sessions[session_id] = session
+            with open(self.session_file, "w") as f:
+                json.dump(sessions, f)
+            
+            return True
+        except:
+            return False
+    
+    def delete_session(self, session_id):
+        try:
+            with open(self.session_file, "r") as f:
+                sessions = json.load(f)
+            if session_id in sessions:
+                del sessions[session_id]
+                with open(self.session_file, "w") as f:
+                    json.dump(sessions, f)
+        except:
+            pass
+
+# 修改登录函数
 def render_login_page():
     """渲染登录页面"""
-    st.markdown("""
-        <style>
-        .login-container {
-            max-width: 400px;
-            margin: 0 auto;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            background-color: white;
-        }
-        .login-header {
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .login-form {
-            padding: 20px;
-        }
-        .stButton>button {
-            width: 100%;
-            margin-top: 20px;
-            background-color: #FF4B4B;
-            color: white;
-        }
-        </style>
-    """, unsafe_allow_html=True)
+    st.title("用户登录")
     
-    # 创建居中的登录容器
-    with st.container():
-        st.markdown('<div class="login-container">', unsafe_allow_html=True)
+    with st.form("login_form", clear_on_submit=True):
+        username = st.text_input("用户名", placeholder="请输入用户名")
+        password = st.text_input("密码", type="password", placeholder="请输入密码")
+        remember = st.checkbox("记住登录状态", value=True)
+        submit = st.form_submit_button("登录")
         
-        # 登录页面标题
-        st.markdown('<div class="login-header">', unsafe_allow_html=True)
-        st.title("🎓 智慧学习空间")
-        st.markdown("</div>", unsafe_allow_html=True)
-        
-        # 登录表单
-        with st.form("login_form", clear_on_submit=True):
-            st.markdown('<div class="login-form">', unsafe_allow_html=True)
-            
-            # 用户名输入
-            username = st.text_input(
-                "用户名",
-                placeholder="请输入用户名",
-                help="输入您的用户名"
-            )
-            
-            # 密码输入
-            password = st.text_input(
-                "密码",
-                type="password",
-                placeholder="请输入密码",
-                help="输入您的密码"
-            )
-            
-            # 记住登录选项
-            remember = st.checkbox("记住登录", value=True)
-            
-            # 提交按钮
-            submit = st.form_submit_button("登 录")
-            
-            st.markdown("</div>", unsafe_allow_html=True)
-            
-            if submit:
-                auth_config = AuthConfig()
-                if auth_config.verify_user(username, password):
+        if submit:
+            auth_config = AuthConfig()
+            if auth_config.verify_user(username, password):
+                # 创建会话
+                session_manager = SessionManager()
+                session_id = session_manager.create_session(username)
+                
+                if session_id:
                     st.session_state.logged_in = True
                     st.session_state.username = username
+                    st.session_state.session_id = session_id
                     st.success("登录成功！")
                     st.rerun()
                 else:
-                    st.error("用户名或密码错误！")
-        
-        # 添加注册和重置密码按钮
-        col1, col2 = st.columns(2)
-        if col1.button("注册新用户"):
-            st.session_state.page = "register"
-            st.rerun()
-        if col2.button("忘记密码"):
-            st.session_state.page = "reset"
-            st.rerun()
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+                    st.error("创建会话失败，请重试")
+            else:
+                st.error("用户名或密码错误！")
+    
+    # 添加注册和重置密码按钮
+    col1, col2 = st.columns(2)
+    if col1.button("注册新用户"):
+        st.session_state.page = "register"
+        st.rerun()
+    if col2.button("忘记密码"):
+        st.session_state.page = "reset"
+        st.rerun()
 
 # 添加注销功能
 def logout():
@@ -1078,6 +1099,15 @@ class LearningSpaceModel:
 # 修改主应用入口
 def main():
     """主函数"""
+    # 加载环境变量
+    load_dotenv()
+    
+    # 检查 DeepSeek API 配置
+    if "DEEPSEEK_API_KEY" not in st.secrets and not os.getenv("DEEPSEEK_API_KEY"):
+        st.warning("请配置 DeepSeek API 密钥。您可以在以下两种方式中选择一种：\n"
+                  "1. 在 .env 文件中设置 DEEPSEEK_API_KEY\n"
+                  "2. 在 Streamlit Secrets 中配置 DEEPSEEK_API_KEY")
+    
     # 初始化session state
     if 'language' not in st.session_state:
         st.session_state.language = 'zh'
@@ -2063,16 +2093,14 @@ class DeepSeekAI(BaseAI):
         super().__init__()
         self.name = "DeepSeek"
         
-        load_dotenv()  # 确保加载环境变量
-        # 尝试从Streamlit Secrets获取API密钥
+        # 从环境变量或 Streamlit Secrets 获取密钥
         if "DEEPSEEK_API_KEY" in st.secrets:
             self.api_key = st.secrets["DEEPSEEK_API_KEY"]
         else:
-            # 回退到环境变量
             self.api_key = os.getenv("DEEPSEEK_API_KEY")
-        
+            
         if not self.api_key:
-            st.error("DeepSeek API密钥未配置")
+            st.error("DeepSeek API密钥未配置，请在环境变量或 Streamlit Secrets 中设置 DEEPSEEK_API_KEY")
             return
             
         self.base_url = "https://api.deepseek.com/v1"
@@ -2095,14 +2123,41 @@ class DeepSeekAI(BaseAI):
                 "max_tokens": kwargs.get('max_tokens', 2000)
             }
             
-            response = requests.post(url, headers=self.headers, json=data)
+            # 添加重试机制
+            max_retries = 3
+            retry_count = 0
             
-            if response.status_code == 200:
-                return response.json()
-            else:
-                error_msg = f"DeepSeek API调用失败({response.status_code}): {response.text}"
-                st.error(error_msg)
-                return {"error": error_msg}
+            while retry_count < max_retries:
+                try:
+                    response = requests.post(url, headers=self.headers, json=data)
+                    
+                    if response.status_code == 200:
+                        return response.json()
+                    else:
+                        error_msg = f"DeepSeek API调用失败({response.status_code}): {response.text}"
+                        st.error(error_msg)
+                        
+                        # 如果是认证错误，给出更明确的提示
+                        if response.status_code == 401:
+                            st.error("API密钥无效或已过期，请检查配置")
+                            return {"error": "认证失败"}
+                            
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            time.sleep(1)  # 等待1秒后重试
+                            continue
+                        return {"error": error_msg}
+                        
+                except Exception as e:
+                    error_msg = f"DeepSeek API错误: {str(e)}"
+                    st.error(error_msg)
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        time.sleep(1)
+                        continue
+                    return {"error": error_msg}
+            
+            return {"error": "达到最大重试次数"}
                 
         except Exception as e:
             error_msg = f"DeepSeek API错误: {str(e)}"
@@ -2159,13 +2214,23 @@ class ErnieAI(BaseAI):
     def __init__(self):
         super().__init__()
         self.name = "文心一言"
-        # 使用正确的API密钥
-        self.api_key = "ALTAK-wkA24WktBRKDpY6tDo8Lh"  # API Key
-        self.secret_key = "1ce45e39bb90c1a26460babd8a719db3fa01cd56"  # Secret Key
+        
+        # 从环境变量或 Streamlit Secrets 获取密钥
+        if "ERNIE_API_KEY" in st.secrets:
+            self.api_key = st.secrets["ERNIE_API_KEY"]
+            self.secret_key = st.secrets["ERNIE_SECRET_KEY"]
+        else:
+            self.api_key = os.getenv("ERNIE_API_KEY")
+            self.secret_key = os.getenv("ERNIE_SECRET_KEY")
+            
+        if not self.api_key or not self.secret_key:
+            st.error("文心一言 API 密钥未配置，请在环境变量或 Streamlit Secrets 中设置 ERNIE_API_KEY 和 ERNIE_SECRET_KEY")
+            return
+            
         self.access_token = None
         self.base_url = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1/wenxinworkshop/chat/completions"
         
-        # 初始化时获取access token
+        # 初始化时获取 access token
         self._refresh_token()
         
         self.headers = {
@@ -2181,18 +2246,31 @@ class ErnieAI(BaseAI):
             "client_secret": self.secret_key
         }
         
-        try:
-            response = requests.post(url, params=params)
-            result = response.json()
-            
-            if 'access_token' in result:
-                self.access_token = result['access_token']
-                st.success("成功获取access token")
-            else:
-                st.error(f"获取access token失败: {result.get('error_description', '未知错误')}")
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                response = requests.post(url, params=params)
+                result = response.json()
                 
-        except Exception as e:
-            st.error(f"获取access token错误: {str(e)}")
+                if 'access_token' in result:
+                    self.access_token = result['access_token']
+                    return True
+                else:
+                    error_msg = result.get('error_description', '未知错误')
+                    st.error(f"获取access token失败: {error_msg}")
+                    if 'unknown client id' in error_msg.lower():
+                        st.error("API密钥无效，请检查配置的API Key和Secret Key是否正确")
+                        return False
+                    
+            except Exception as e:
+                st.error(f"获取access token时发生错误: {str(e)}")
+            
+            retry_count += 1
+            time.sleep(1)  # 等待1秒后重试
+        
+        return False
 
     def generate_response(self, messages, **kwargs):
         """生成回复"""
@@ -2433,10 +2511,8 @@ def render_space_recommendation():
         
         special_requirements = st.text_area("特殊需求(可选)")
         
-        # 定义submit变量
         submit_button = st.form_submit_button("推荐学习空间")
     
-    # 表单提交后的处理逻辑
     if submit_button:
         with st.spinner("正在生成学习空间推荐..."):
             try:
@@ -2452,7 +2528,7 @@ def render_space_recommendation():
                 # 获取可用空间数据
                 available_spaces = cached_space_usage().to_dict()
                 
-                # 调用DeepSeek进行空间推荐
+                # 调用 DeepSeek 进行空间推荐
                 deepseek_ai = DeepSeekAI()
                 prompt = f"""
                 请根据以下学习需求，从可用的学习空间中推荐最适合的空间:
@@ -2481,13 +2557,7 @@ def render_space_recommendation():
                     {"role": "user", "content": prompt}
                 ]
                 
-                # 使用带重试的API调用
-                response = deepseek_ai.sync_generate_response_with_retry(
-                    messages,
-                    temperature=0.7,
-                    timeout=45,
-                    max_retries=3
-                )
+                response = deepseek_ai.generate_response(messages)
                 
                 # 在表单外的容器中显示结果
                 with result_container:
@@ -2536,7 +2606,6 @@ def render_space_recommendation():
                             st.markdown("## 学习空间推荐")
                             st.markdown(recommendation)
                             
-                            # 这个按钮在表单外部，是合法的
                             if st.button("预约推荐空间"):
                                 st.success("预约请求已发送，请等待确认。")
                         except (KeyError, IndexError) as e:
@@ -4511,18 +4580,31 @@ class DouBaoAI(BaseAI):
             "client_secret": self.secret_key
         }
         
-        try:
-            response = requests.post(url, params=params)
-            result = response.json()
-            
-            if 'access_token' in result:
-                self.access_token = result['access_token']
-                st.success("成功获取access token")
-            else:
-                st.error(f"获取access token失败: {result.get('error_description', '未知错误')}")
+        max_retries = 3
+        retry_count = 0
+        
+        while retry_count < max_retries:
+            try:
+                response = requests.post(url, params=params)
+                result = response.json()
                 
-        except Exception as e:
-            st.error(f"获取access token错误: {str(e)}")
+                if 'access_token' in result:
+                    self.access_token = result['access_token']
+                    return True
+                else:
+                    error_msg = result.get('error_description', '未知错误')
+                    st.error(f"获取access token失败: {error_msg}")
+                    if 'unknown client id' in error_msg.lower():
+                        st.error("API密钥无效，请检查配置的API Key和Secret Key是否正确")
+                        return False
+                    
+            except Exception as e:
+                st.error(f"获取access token时发生错误: {str(e)}")
+            
+            retry_count += 1
+            time.sleep(1)  # 等待1秒后重试
+        
+        return False
 
     def generate_response(self, messages, **kwargs):
         """生成回复"""
@@ -4681,4 +4763,9 @@ if not DEEPSEEK_API_KEY:
     st.warning("DeepSeek API密钥未配置，请在Streamlit Secrets或.env文件中设置DEEPSEEK_API_KEY")
 
 if __name__ == "__main__":
+    st.set_page_config(
+        page_title="基于AIGC的5A全域智慧学习交互系统",
+        page_icon="📚",
+        layout="wide"
+    )
     main() 
